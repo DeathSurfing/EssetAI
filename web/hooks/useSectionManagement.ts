@@ -39,8 +39,9 @@ export function useSectionManagement({
   promptId,
   defaultBusinessContext,
 }: UseSectionManagementParams): UseSectionManagementReturn {
-  // Convex mutation for saving sections
+  // Convex mutations
   const updatePromptSections = useMutation(api.prompts.updatePromptSections);
+  const trackGeneration = useMutation(api.generations.trackGeneration);
 
   const regenerateSection = useCallback(
     async (
@@ -152,6 +153,16 @@ export function useSectionManagement({
             console.error("Failed to save regenerated section:", error);
           }
         }
+
+        // Track generation usage
+        try {
+          await trackGeneration({
+            type: "section",
+            promptId: promptId as Id<"prompts"> | undefined,
+          });
+        } catch (trackError) {
+          console.error("Failed to track section regeneration:", trackError);
+        }
       } catch (err) {
         console.error("Regenerate error:", err);
         toast.error(err instanceof Error ? err.message : "Failed to regenerate section");
@@ -169,7 +180,7 @@ export function useSectionManagement({
         throw err;
       }
     },
-    [sections, setSections, promptId, updatePromptSections, defaultBusinessContext]
+    [sections, setSections, promptId, updatePromptSections, defaultBusinessContext, trackGeneration]
   );
 
   const undoSection = useCallback(

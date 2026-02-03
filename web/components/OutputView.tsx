@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { MapPin, ArrowLeft, Sparkles, Users, Share2 } from "lucide-react";
+import { MapPin, ArrowLeft, Sparkles, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StreamingPromptOutput } from "./StreamingPromptOutput";
@@ -10,7 +10,6 @@ import { PromptQualityScoreDisplay } from "./PromptQualityScore";
 import { SectionState } from "@/lib/prompt-parser";
 import { PromptQualityScore } from "@/lib/prompt-quality";
 import { cn } from "@/lib/utils";
-import { ShareDialog } from "./ShareDialog";
 import { InviteDialog } from "./InviteDialog";
 import { CollaborativeEditor } from "./CollaborativeEditor";
 
@@ -99,28 +98,18 @@ export function OutputView({
             </div>
 
             {/* Share Buttons - Only show when prompt is saved */}
-            {canShare && (
+            {canShare && isOwner && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex items-center gap-2"
               >
-                <ShareDialog
+                <InviteDialog
                   promptId={promptId}
                   isOwner={isOwner}
-                  currentMode={shareMode}
-                  isPublic={isPublic}
-                  shareToken={shareToken}
+                  userRole={userRole}
+                  currentCollaborators={collaborators}
                 />
-                
-                {isOwner && (
-                  <InviteDialog
-                    promptId={promptId}
-                    isOwner={isOwner}
-                    userRole={userRole}
-                    currentCollaborators={collaborators}
-                  />
-                )}
               </motion.div>
             )}
 

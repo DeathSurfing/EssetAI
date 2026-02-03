@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { parseGoogleMapsUrlSync } from "@/lib/location-parser";
 import { PromptQualityScore } from "@/lib/prompt-quality";
 import { SectionState, parseSections, calculateSectionsQualityScore } from "@/lib/prompt-parser";
@@ -30,6 +32,9 @@ export function usePromptGeneration(): UsePromptGenerationReturn {
   const [error, setError] = useState<string | null>(null);
   const [businessContext, setBusinessContext] = useState<BusinessContext | null>(null);
   const [streamingText, setStreamingText] = useState("");
+
+  // Track generation usage
+  const trackGeneration = useMutation(api.generations.trackGeneration);
 
   const generatedPrompt = sections
     .filter((s) => s.header)
@@ -108,13 +113,20 @@ const generatePrompt = useCallback(async (googleMapsUrl: string, parsedLocation?
       setSections(parsedSections);
       const score = calculateSectionsQualityScore(parsedSections);
       setQualityScore(score);
+
+      // Track generation usage
+      try {
+        await trackGeneration({ type: "full" });
+      } catch (trackError) {
+        console.error("Failed to track generation:", trackError);
+      }
     } catch (err) {
       console.error("Submit error:", err);
       setError(err instanceof Error ? err.message : "Failed to generate prompt");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [trackGeneration]);
 
   const clearError = useCallback(() => {
     setError(null);
