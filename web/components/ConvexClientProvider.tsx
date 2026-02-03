@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useCallback, useRef, useEffect, useState } from "react";
+import { ReactNode, useCallback, useRef } from "react";
 import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithAuthKit } from "@convex-dev/workos";
 import {
@@ -28,32 +28,17 @@ function useAuthFromAuthKit() {
 
   const loading = (isLoading ?? false) || (tokenLoading ?? false);
 
-  // Use a ref that we can mutate to always have the latest token
-  const tokenRef = useRef<string | null>(null);
-  
-  // Update the ref whenever accessToken changes
-  useEffect(() => {
-    if (accessToken && !tokenError) {
-      console.log("[ConvexClientProvider] Access token updated, length:", accessToken.length);
-      tokenRef.current = accessToken;
-    } else if (tokenError) {
-      console.error("[ConvexClientProvider] Token error:", tokenError);
-      tokenRef.current = null;
-    }
-  }, [accessToken, tokenError]);
+  const stableAccessToken = useRef<string | null>(null);
+  if (accessToken && !tokenError) {
+    stableAccessToken.current = accessToken;
+  }
 
-  // This function is called by Convex to get the auth token
-  // It must return the CURRENT token value, not a stale one
   const getAccessToken = useCallback(async () => {
-    const currentToken = tokenRef.current;
-    console.log("[ConvexClientProvider] getAccessToken called, has token:", !!currentToken);
-    
-    if (!currentToken) {
-      console.warn("[ConvexClientProvider] No access token available");
+    if (stableAccessToken.current && !tokenError) {
+      return stableAccessToken.current;
     }
-    
-    return currentToken;
-  }, []); // No dependencies - always reads from ref
+    return null;
+  }, [tokenError]);
 
   return {
     isLoading: loading,

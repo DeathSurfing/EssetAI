@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
 import { Sidebar } from "@/components/Sidebar";
 import { InputView } from "@/components/InputView";
 import { OutputView } from "@/components/OutputView";
@@ -21,17 +20,6 @@ import { SectionState } from "@/lib/prompt-parser";
 import { Id } from "@/convex/_generated/dataModel";
 
 type ViewState = "input" | "output";
-
-// Safe wrapper for convertConvexPrompt with error handling
-const safeConvertPrompt = (prompt: any) => {
-  try {
-    return convertConvexPrompt(prompt);
-  } catch (error) {
-    console.error("[HomeContent] Failed to convert prompt:", prompt, error);
-    toast.error("Failed to load a prompt");
-    return null;
-  }
-};
 
 // Section headers for animation
 const SECTION_HEADERS = [
@@ -112,30 +100,8 @@ export default function HomeContent() {
     defaultBusinessContext,
   });
 
-  const { prompts, addPrompt, deletePrompt, searchPrompts, isLoading: isPromptsLoading, isAuthReady, refresh } = usePromptHistory();
+  const { prompts, addPrompt, deletePrompt, searchPrompts } = usePromptHistory();
   const { user } = useAuth();
-
-  // Listen for user sync completion and refresh prompts
-  useEffect(() => {
-    const handleUserSynced = (event: Event) => {
-      console.log("[HomeContent] User synced event received, refreshing prompts...", (event as CustomEvent).detail);
-      refresh();
-    };
-
-    window.addEventListener('user-synced', handleUserSynced);
-    return () => window.removeEventListener('user-synced', handleUserSynced);
-  }, [refresh]);
-
-  // Debug logging
-  useEffect(() => {
-    console.log("[HomeContent] Auth state:", { 
-      isAuthenticated: !!user, 
-      userId: user?.id,
-      isAuthReady,
-      isPromptsLoading,
-      promptsCount: prompts.length 
-    });
-  }, [user, isAuthReady, isPromptsLoading, prompts.length]);
 
   // Fetch prompt access info when viewing a specific prompt
   const promptAccess = useQuery(
@@ -161,16 +127,6 @@ export default function HomeContent() {
     user ? {} : "skip"
   );
 
-  // Debug shared prompts
-  useEffect(() => {
-    if (user) {
-      console.log("[HomeContent] Shared prompts:", { 
-        sharedPromptsCount: sharedPrompts?.length,
-        sharedPrompts 
-      });
-    }
-  }, [sharedPrompts, user]);
-
   // Handle URL query parameter ?prompt= for invite redirects
   const searchParams = useSearchParams();
   const [isLoadingFromUrl, setIsLoadingFromUrl] = useState(false);
@@ -187,31 +143,20 @@ export default function HomeContent() {
     if (urlPromptId && promptFromUrl && !isLoadingFromUrl) {
       setIsLoadingFromUrl(true);
       
-      try {
-        // Convert to SavedPrompt format and load
-        const savedPrompt = convertConvexPrompt(promptFromUrl);
-        
-        if (!savedPrompt) {
-          console.error("[HomeContent] Failed to convert prompt from URL");
-          toast.error("Failed to load the shared prompt");
-          return;
-        }
-        
-        setGoogleMapsUrl(savedPrompt.url);
-        setCurrentPromptId(savedPrompt.id);
-        setSections(savedPrompt.sections);
-        setView("output");
-        setShowOutput(true);
-        
-        // Clear the URL parameter without reloading
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, "", newUrl);
-      } catch (error) {
-        console.error("[HomeContent] Failed to load prompt from URL:", error);
-        toast.error("Failed to load the shared prompt");
-      } finally {
-        setIsLoadingFromUrl(false);
-      }
+      // Convert to SavedPrompt format and load
+      const savedPrompt = convertConvexPrompt(promptFromUrl);
+      
+      setGoogleMapsUrl(savedPrompt.url);
+      setCurrentPromptId(savedPrompt.id);
+      setSections(savedPrompt.sections);
+      setView("output");
+      setShowOutput(true);
+      
+      // Clear the URL parameter without reloading
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, "", newUrl);
+      
+      setIsLoadingFromUrl(false);
     }
   }, [urlPromptId, promptFromUrl, isLoadingFromUrl]);
 
@@ -362,11 +307,8 @@ export default function HomeContent() {
         onPromptClick={handlePromptClick}
         onDeletePrompt={deletePrompt}
         currentPromptId={currentPromptId}
-        sharedPrompts={(sharedPrompts || [])
-          .map(safeConvertPrompt)
-          .filter((p): p is NonNullable<typeof p> => p !== null)}
+        sharedPrompts={(sharedPrompts || []).map(convertConvexPrompt)}
         onSharedPromptClick={handleSharedPromptClick}
-        isLoading={isPromptsLoading}
       />
 
       {/* Main Content Area */}

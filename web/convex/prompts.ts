@@ -4,34 +4,20 @@ import { query, mutation } from "./_generated/server";
 export const getMyPrompts = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      console.log("[Convex getMyPrompts] No identity found");
-      return [];
-    }
-
-    console.log("[Convex getMyPrompts] Looking up user with workosId:", identity.subject);
+    if (!identity) return [];
 
     const user = await ctx.db
       .query("users")
       .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
       .first();
 
-    if (!user) {
-      console.log("[Convex getMyPrompts] User not found in Convex database, subject:", identity.subject);
-      // Return empty array but client will know to retry
-      return [];
-    }
+    if (!user) return [];
 
-    console.log("[Convex getMyPrompts] Found user:", user._id, "fetching prompts...");
-
-    const prompts = await ctx.db
+    return await ctx.db
       .query("prompts")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .order("desc")
       .take(100);
-
-    console.log("[Convex getMyPrompts] Found", prompts.length, "prompts for user");
-    return prompts;
   },
 });
 
@@ -242,24 +228,14 @@ export const getPublicPrompt = query({
 export const getSharedPrompts = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      console.log("[Convex getSharedPrompts] No identity found");
-      return [];
-    }
-
-    console.log("[Convex getSharedPrompts] Looking up user with workosId:", identity.subject);
+    if (!identity) return [];
 
     const user = await ctx.db
       .query("users")
       .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
       .first();
 
-    if (!user) {
-      console.log("[Convex getSharedPrompts] User not found in Convex database");
-      return [];
-    }
-
-    console.log("[Convex getSharedPrompts] Found user:", user._id, "searching for shared prompts...");
+    if (!user) return [];
 
     // Get all prompts where user is in collaborators array
     const allPrompts = await ctx.db.query("prompts").collect();
@@ -267,8 +243,6 @@ export const getSharedPrompts = query({
     const sharedPrompts = allPrompts.filter((prompt) => 
       prompt.collaborators?.includes(user._id)
     );
-
-    console.log("[Convex getSharedPrompts] Found", sharedPrompts.length, "shared prompts");
 
     // Enrich with owner info
     const enriched = await Promise.all(

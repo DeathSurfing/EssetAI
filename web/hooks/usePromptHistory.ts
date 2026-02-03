@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
@@ -47,51 +47,26 @@ const saveToStorage = (prompts: SavedPrompt[]) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(prompts));
 };
 
-// Convert Convex prompt to SavedPrompt format with error handling
-export const convertConvexPrompt = (prompt: any): SavedPrompt | null => {
-  // Validate prompt data
-  if (!prompt) {
-    console.error("[convertConvexPrompt] Received null/undefined prompt");
-    return null;
-  }
-
-  if (!prompt._id) {
-    console.error("[convertConvexPrompt] Prompt missing _id:", prompt);
-    return null;
-  }
-
-  // Handle missing or invalid sections
-  const sections = Array.isArray(prompt.sections) ? prompt.sections : [];
-  
-  if (!Array.isArray(prompt.sections)) {
-    console.warn(`[convertConvexPrompt] Prompt ${prompt._id} has invalid sections:`, prompt.sections);
-  }
-
-  return {
-    id: prompt._id,
-    placeName: prompt.placeName || "Untitled",
-    url: prompt.url || "",
-    timestamp: prompt.createdAt || Date.now(),
-    promptPreview: sections.length > 0 
-      ? sections.map((s: any) => s?.content || "").join(" ").slice(0, 150) + "..."
-      : "No content...",
-    fullPrompt: sections.length > 0
-      ? sections.map((s: any) => `${s?.header || ""}\n${s?.content || ""}`).join("\n\n")
-      : "",
-    sections: sections.map((s: any) => ({
-      header: s?.header || "",
-      content: s?.content || "",
-      isRegenerating: false,
-      isDirty: false,
-      previousContent: null,
-    })),
-  };
-};
+// Convert Convex prompt to SavedPrompt format
+export const convertConvexPrompt = (prompt: any): SavedPrompt => ({
+  id: prompt._id,
+  placeName: prompt.placeName,
+  url: prompt.url,
+  timestamp: prompt.createdAt,
+  promptPreview: prompt.sections.map((s: any) => s.content).join(" ").slice(0, 150) + "...",
+  fullPrompt: prompt.sections.map((s: any) => `${s.header}\n${s.content}`).join("\n\n"),
+  sections: prompt.sections.map((s: any) => ({
+    header: s.header,
+    content: s.content,
+    isRegenerating: false,
+    isDirty: false,
+    previousContent: null,
+  })),
+});
 
 interface UsePromptHistoryReturn {
   prompts: SavedPrompt[];
   isLoading: boolean;
-  isAuthReady: boolean;
   addPrompt: (prompt: Omit<SavedPrompt, "id" | "timestamp">) => Promise<string>;
   deletePrompt: (id: string) => Promise<void>;
   searchPrompts: (query: string) => SavedPrompt[];
@@ -101,13 +76,7 @@ interface UsePromptHistoryReturn {
 
 export function usePromptHistory(): UsePromptHistoryReturn {
   const { user } = useAuth();
-  const isWorkOSAuthenticated = !!user;
-  
-  // Track if we've successfully loaded prompts at least once
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 5;
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isAuthenticated = !!user;
 
   // Convex queries and mutations
   const convexPrompts = useQuery(api.prompts.getMyPrompts);
@@ -120,63 +89,16 @@ export function usePromptHistory(): UsePromptHistoryReturn {
   );
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Convert prompts with error handling - filter out nulls
-  const convertedPrompts = isWorkOSAuthenticated
-    ? (convexPrompts || [])
-        .map(convertConvexPrompt)
-        .filter((p): p is SavedPrompt => p !== null)
+  // Combine prompts based on auth state
+  const prompts = isAuthenticated
+    ? (convexPrompts || []).map(convertConvexPrompt)
     : localPrompts;
 
-  // Determine if auth is ready (Convex has returned data or confirmed empty)
-  const isAuthReady = isWorkOSAuthenticated && convexPrompts !== undefined;
-  
-  // Loading state: still loading if authenticated but haven't got Convex data yet
-  const isLoading = isWorkOSAuthenticated && convexPrompts === undefined && retryCount < maxRetries;
-
-  // Retry logic: if we have WorkOS auth but no Convex data, retry
-  useEffect(() => {
-    if (isWorkOSAuthenticated && convexPrompts === undefined && retryCount < maxRetries) {
-      console.log(`[PromptHistory] Retry ${retryCount + 1}/${maxRetries} - waiting for Convex data...`);
-      
-      retryTimeoutRef.current = setTimeout(() => {
-        setRetryCount(prev => prev + 1);
-        // Force a re-render to trigger query refetch
-        setRefreshKey(k => k + 1);
-      }, 1000 * (retryCount + 1)); // Exponential backoff: 1s, 2s, 3s, etc.
-    }
-
-    return () => {
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-    };
-  }, [isWorkOSAuthenticated, convexPrompts, retryCount]);
-
-  // Reset retry count when we successfully get data
-  useEffect(() => {
-    if (convexPrompts !== undefined && !hasLoadedOnce) {
-      setHasLoadedOnce(true);
-      setRetryCount(0);
-      console.log("[PromptHistory] Successfully loaded prompts:", convexPrompts.length);
-    }
-  }, [convexPrompts, hasLoadedOnce]);
-
-  // Debug logging
-  useEffect(() => {
-    console.log("[PromptHistory] State:", {
-      isWorkOSAuthenticated,
-      isAuthReady,
-      isLoading,
-      retryCount,
-      convexPromptsCount: convexPrompts?.length,
-      convertedPromptsCount: convertedPrompts.length,
-      hasLoadedOnce
-    });
-  }, [isWorkOSAuthenticated, isAuthReady, isLoading, retryCount, convexPrompts, convertedPrompts.length, hasLoadedOnce]);
+  const isLoading = isAuthenticated && convexPrompts === undefined;
 
   // Listen for storage changes from other tabs (only for localStorage)
   useEffect(() => {
-    if (isWorkOSAuthenticated) return;
+    if (isAuthenticated) return;
 
     const handleStorage = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY) {
@@ -188,11 +110,11 @@ export function usePromptHistory(): UsePromptHistoryReturn {
 
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-  }, [isWorkOSAuthenticated]);
+  }, [isAuthenticated]);
 
   // Sync with localStorage periodically (only for anonymous users)
   useEffect(() => {
-    if (isWorkOSAuthenticated) return;
+    if (isAuthenticated) return;
 
     const interval = setInterval(() => {
       const current = loadFromStorage();
@@ -202,11 +124,11 @@ export function usePromptHistory(): UsePromptHistoryReturn {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [localPrompts, isWorkOSAuthenticated]);
+  }, [localPrompts, isAuthenticated]);
 
   const addPrompt = useCallback(
     async (prompt: Omit<SavedPrompt, "id" | "timestamp">): Promise<string> => {
-      if (isWorkOSAuthenticated) {
+      if (isAuthenticated) {
         // Save to Convex - strip extra fields from sections
         try {
           const cleanSections = prompt.sections.map((section) => ({
@@ -240,12 +162,12 @@ export function usePromptHistory(): UsePromptHistoryReturn {
         return newPrompt.id;
       }
     },
-    [isWorkOSAuthenticated, localPrompts, createPrompt]
+    [isAuthenticated, localPrompts, createPrompt]
   );
 
   const deletePrompt = useCallback(
     async (id: string) => {
-      if (isWorkOSAuthenticated) {
+      if (isAuthenticated) {
         // Delete from Convex
         try {
           await deleteConvexPrompt({ id: id as any });
@@ -262,39 +184,36 @@ export function usePromptHistory(): UsePromptHistoryReturn {
         setLocalPrompts(updated);
       }
     },
-    [isWorkOSAuthenticated, localPrompts, deleteConvexPrompt]
+    [isAuthenticated, localPrompts, deleteConvexPrompt]
   );
 
   const searchPrompts = useCallback(
     (query: string) => {
-      if (!query.trim()) return convertedPrompts;
+      if (!query.trim()) return prompts;
       const lowerQuery = query.toLowerCase();
-      return convertedPrompts.filter((p) =>
+      return prompts.filter((p) =>
         p.placeName.toLowerCase().includes(lowerQuery)
       );
     },
-    [convertedPrompts]
+    [prompts]
   );
 
   const getPromptById = useCallback(
     (id: string) => {
-      return convertedPrompts.find((p) => p.id === id);
+      return prompts.find((p) => p.id === id);
     },
-    [convertedPrompts]
+    [prompts]
   );
 
   const refresh = useCallback(() => {
     cachedPrompts = null;
     setLocalPrompts(loadFromStorage());
     setRefreshKey((k) => k + 1);
-    setRetryCount(0);
-    setHasLoadedOnce(false);
   }, []);
 
   return {
-    prompts: convertedPrompts,
+    prompts,
     isLoading,
-    isAuthReady,
     addPrompt,
     deletePrompt,
     searchPrompts,
