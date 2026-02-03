@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SectionCard } from "./SectionCard";
+import { OpenInButtons } from "./OpenInButtons";
 
 interface StreamingPromptOutputProps {
   text: string;
@@ -102,41 +103,53 @@ export function StreamingPromptOutput({
           </div>
         </div>
       </div>
-      <div
-        ref={scrollRef}
-        className="max-h-[600px] overflow-y-auto p-4"
-      >
-        {!hasContent ? (
-          <div className="flex items-center gap-2 text-muted-foreground py-8">
-            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" />
-            <div className="w-2 h-2 bg-primary rounded-full animate-bounce delay-75" />
-            <div className="w-2 h-2 bg-primary rounded-full animate-bounce delay-150" />
-            <span className="text-sm">Initializing...</span>
+      <div className="p-4">
+        <div className="flex gap-4">
+          {/* Left side - Prompt Content */}
+          <div
+            ref={scrollRef}
+            className="flex-1 max-h-[600px] overflow-y-auto"
+          >
+            {!hasContent ? (
+              <div className="flex items-center gap-2 text-muted-foreground py-8">
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce delay-75" />
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce delay-150" />
+                <span className="text-sm">Initializing...</span>
+              </div>
+            ) : !hasSections ? (
+              <div className="font-mono text-sm whitespace-pre-wrap text-foreground leading-relaxed">
+                {text}
+                {isLoading && <span className="animate-pulse text-primary ml-1">▍</span>}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {sections.map((section, index) => (
+                  <SectionCard
+                    key={index}
+                    header={section.header}
+                    content={section.content}
+                    index={index}
+                    isRegenerating={section.isRegenerating}
+                    isDirty={section.isDirty}
+                    previousContent={section.previousContent}
+                    onRegenerate={onRegenerateSection}
+                    onUndo={onUndoSection}
+                    onEdit={onEditSection}
+                    allSections={sections.map(s => `${s.header}\n${s.content}`)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        ) : !hasSections ? (
-          <div className="font-mono text-sm whitespace-pre-wrap text-foreground leading-relaxed">
-            {text}
-            {isLoading && <span className="animate-pulse text-primary ml-1">▍</span>}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {sections.map((section, index) => (
-              <SectionCard
-                key={index}
-                header={section.header}
-                content={section.content}
-                index={index}
-                isRegenerating={section.isRegenerating}
-                isDirty={section.isDirty}
-                previousContent={section.previousContent}
-                onRegenerate={onRegenerateSection}
-                onUndo={onUndoSection}
-                onEdit={onEditSection}
-                allSections={sections.map(s => `${s.header}\n${s.content}`)}
-              />
-            ))}
-          </div>
-        )}
+          
+          {/* Right side - Open In Buttons */}
+          {isComplete && (
+            <div className="shrink-0">
+              <OpenInButtons prompt={text} />
+            </div>
+          )}
+        </div>
       </div>
     </Card>
   );

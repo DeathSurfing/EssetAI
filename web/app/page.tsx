@@ -5,14 +5,11 @@ import { useState } from "react";
 import { Container } from "@/components/Container";
 import { Header } from "@/components/Header";
 import { PromptInputWithMap } from "@/components/PromptInputWithMap";
-import { BuilderToggle } from "@/components/BuilderToggle";
 import { StreamingPromptOutput as PromptOutput } from "@/components/StreamingPromptOutput";
 import { PromptQualityScoreDisplay } from "@/components/PromptQualityScore";
 import { Button } from "@/components/ui/button";
 import { calculateQualityScore, PromptQualityScore } from "@/lib/prompt-quality";
 import { parseGoogleMapsUrl } from "@/lib/location-parser";
-
-type BuilderType = "lovable" | "framer" | "webflow";
 
 type SectionState = {
   header: string;
@@ -87,7 +84,6 @@ function assemblePrompt(sections: SectionState[]): string {
 
 export default function Home() {
   const [googleMapsUrl, setGoogleMapsUrl] = useState("");
-  const [builder, setBuilder] = useState<BuilderType>("lovable");
   const [sections, setSections] = useState<SectionState[]>([]);
   const [qualityScore, setQualityScore] = useState<PromptQualityScore | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -118,7 +114,6 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           googleMapsUrl,
-          builder,
         }),
       });
       
@@ -241,12 +236,6 @@ export default function Home() {
     setQualityScore(score);
   };
   
-  const builderLabels: Record<BuilderType, string> = {
-    lovable: "Lovable",
-    framer: "Framer",
-    webflow: "Webflow AI",
-  };
-  
   return (
     <div className="min-h-screen bg-background">
       <Container className="py-8">
@@ -259,12 +248,6 @@ export default function Home() {
             disabled={isLoading}
           />
           
-          <BuilderToggle
-            value={builder}
-            onChange={setBuilder}
-            disabled={isLoading}
-          />
-          
           <Button
             onClick={handleSubmit}
             disabled={!googleMapsUrl.trim() || isLoading}
@@ -274,10 +257,10 @@ export default function Home() {
             {isLoading ? (
               <>
                 <span className="animate-spin mr-2">⏳</span>
-                Generating for {builderLabels[builder]}...
+                Generating...
               </>
             ) : (
-              `Generate ${builderLabels[builder]} Prompt`
+              "Generate Prompt"
             )}
           </Button>
           
