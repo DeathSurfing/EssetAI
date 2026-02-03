@@ -295,28 +295,6 @@ export function CollaborationPresence({
           )}
         </div>
 
-        {/* Live indicator */}
-        <motion.div
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="ml-3 flex items-center gap-1.5"
-        >
-          <motion.div
-            className="w-2 h-2 rounded-full bg-emerald-500"
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.7, 1, 0.7],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-          <span className="text-xs font-medium text-muted-foreground">
-            {collaborators.length} active
-          </span>
-        </motion.div>
       </div>
 
       {/* Typing indicator bar */}

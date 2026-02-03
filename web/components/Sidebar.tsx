@@ -17,7 +17,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Logo } from "@/components/Logo";
 import { SavedPrompt } from "@/hooks/usePromptHistory";
-import { QuotaDisplay } from "./auth/QuotaDisplay";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -330,12 +329,6 @@ export function Sidebar({
 
               {/* User Profile Section */}
               <div className="mt-4 pt-4 border-t border-border">
-                {isSignedIn && (
-                  <div className="mb-3">
-                    <QuotaDisplay />
-                  </div>
-                )}
-                
                 <Popover>
                   <PopoverTrigger asChild>
                     <motion.button
@@ -426,11 +419,6 @@ export function Sidebar({
                     </div>
                   </PopoverContent>
                 </Popover>
-                
-                {/* Original Footer */}
-                <div className="mt-3 text-xs text-muted-foreground text-center">
-                  {prompts.length} / 10 prompts saved
-                </div>
               </div>
             </motion.div>
           )}

@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { SectionState, assemblePrompt, parseSections } from "@/lib/prompt-parser";
 import { cn } from "@/lib/utils";
-import { Users, PencilLine, Radio, Eye, Sparkles, Activity } from "lucide-react";
+import { PencilLine, Radio, Eye, Sparkles, Activity } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
@@ -454,28 +454,8 @@ export function CollaborativeEditor({
         className="sticky top-0 z-20 px-4 py-3 bg-background/95 backdrop-blur-xl border-b border-border/50"
       >
         <div className="flex items-center justify-between max-w-7xl mx-auto">
-          {/* Left: Title and status */}
+          {/* Left: Connection status only */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-fuchsia-500/20 via-purple-500/20 to-cyan-500/20 border border-primary/20">
-                  <Users className="w-4 h-4 text-primary" />
-                </div>
-                <motion.div
-                  className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-background"
-                  animate={{ scale: [1, 1.3, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold">Collaboration</span>
-                <span className="text-xs text-muted-foreground">
-                  {isLoading ? "Connecting..." : `${sortedCollaborators.length} active`}
-                </span>
-              </div>
-            </div>
-
-            {/* Connection status */}
             {!isLoading && (
               <ConnectionStatus isConnected={!!collaborators && !!prompt} />
             )}
