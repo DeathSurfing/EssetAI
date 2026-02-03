@@ -55,7 +55,13 @@ export const convertConvexPrompt = (prompt: any): SavedPrompt => ({
   timestamp: prompt.createdAt,
   promptPreview: prompt.sections.map((s: any) => s.content).join(" ").slice(0, 150) + "...",
   fullPrompt: prompt.sections.map((s: any) => `${s.header}\n${s.content}`).join("\n\n"),
-  sections: prompt.sections,
+  sections: prompt.sections.map((s: any) => ({
+    header: s.header,
+    content: s.content,
+    isRegenerating: false,
+    isDirty: false,
+    previousContent: null,
+  })),
 });
 
 interface UsePromptHistoryReturn {
