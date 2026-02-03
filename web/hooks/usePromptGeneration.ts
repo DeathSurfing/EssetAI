@@ -83,13 +83,6 @@ const generatePrompt = useCallback(async (googleMapsUrl: string, parsedLocation?
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
-      // Check if response is JSON (error) instead of text stream
-      const contentType = response.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Server returned JSON instead of stream");
-      }
-
       // Handle streaming response
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
@@ -112,8 +105,7 @@ const generatePrompt = useCallback(async (googleMapsUrl: string, parsedLocation?
       console.log("Text preview:", fullText.substring(0, 100));
 
       if (fullText.trim().length === 0) {
-        console.error("Empty response received. Status:", response.status, "Headers:", Object.fromEntries(response.headers.entries()));
-        throw new Error("No prompt in response. The AI service may be temporarily unavailable or the API key may be invalid.");
+        throw new Error("No prompt in response");
       }
 
       // Parse sections from the complete text
