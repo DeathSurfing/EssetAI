@@ -17,8 +17,10 @@ export function PromptInput({
   disabled = false,
   placeholder = "Paste Google Maps business link here...",
 }: PromptInputProps) {
+  const isShortUrl = /(maps\.app\.goo\.gl|goo\.gl)/i.test(value);
+  
   return (
-    <div className="w-full">
+    <div className="w-full space-y-2">
       <Input
         type="url"
         value={value}
@@ -27,9 +29,15 @@ export function PromptInput({
         placeholder={placeholder}
         className={cn(
           "w-full",
-          disabled && "opacity-50 cursor-not-allowed"
+          disabled && "opacity-50 cursor-not-allowed",
+          isShortUrl && "border-yellow-500/50 focus-visible:border-yellow-500"
         )}
       />
+      {isShortUrl && (
+        <p className="text-xs text-yellow-600 dark:text-yellow-400">
+          Short URL detected. For better results, use the full Google Maps URL (open the link and copy the long URL from the address bar).
+        </p>
+      )}
     </div>
   );
 }

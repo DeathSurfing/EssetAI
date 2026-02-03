@@ -1,6 +1,6 @@
-import { streamText } from "ai";
+import { generateText } from "ai";
 import { createOpenRouterClient } from "@/lib/openrouter";
-import { parseGoogleMapsUrl } from "@/lib/location-parser";
+import { parseGoogleMapsUrl, formatLocationContext } from "@/lib/location-parser";
 import { generatePromptSchema } from "@/lib/prompt-quality";
 
 export const runtime = "edge";
@@ -11,18 +11,21 @@ export async function POST(req: Request) {
     const { googleMapsUrl } = generatePromptSchema.parse(body);
     
     const location = parseGoogleMapsUrl(googleMapsUrl);
+    console.log("Extracted location:", location);
     
     const { client, model } = createOpenRouterClient();
+    console.log("Using model:", model);
     
-    const systemPrompt = `You are an expert website prompt engineer. Your task is to generate a complete, structured website generation prompt that follows an exact format.
+    // Build context string
+    const businessName = location.businessName || "Local Business";
+    const locationStr = location.locality || location.city || location.area || "Unknown location";
+    
+    console.log("Business:", businessName, "| Location:", locationStr);
+    
+    // Simplified prompt for arcee model
+    const systemPrompt = `You are a website prompt generator. Create structured website prompts.
 
-CONTEXT FROM USER INPUT:
-- Business Name: ${location.businessName || "Not specified"}
-- Area/Neighborhood: ${location.area || "Not specified"}
-- City: ${location.city || "Not specified"}
-
-STRICT OUTPUT FORMAT REQUIREMENTS:
-You MUST format your response with exactly 8 section headers. Each section header must be on its own line in ALL CAPS with NO markdown formatting (no #, no **, no bold). The headers must appear exactly as written below:
+Generate a complete website generation prompt with these 8 sections:
 
 PROJECT CONTEXT
 BUSINESS OVERVIEW
@@ -33,33 +36,46 @@ CONTENT GUIDELINES
 PRIMARY CALL-TO-ACTION
 LOCATION CONTEXT
 
-CRITICAL RULES:
-1. Each section MUST start with its header in ALL CAPS on its own line
-2. Never use markdown headers (# or ##) - write headers as plain text
-3. Infer business type from the name (e.g., "cafe", "salon", "gym", "restaurant", "plumber")
-4. Never mention Google Maps or how you inferred information
-5. Never fabricate specific factual claims (awards, years, certifications)
-6. Keep each section to 2-4 concise sentences
-7. Output ONLY the structured prompt - no explanations, no reasoning, no intro text
+Instructions:
+- Use ALL CAPS for section headers
+- Write 2-4 sentences per section
+- Be specific and actionable
+- Infer business type from the name
+- Never mention Google Maps or URLs
+- Never make up awards or years in business
 
-EXAMPLE FORMAT:
-PROJECT CONTEXT
-Create a professional website for a local business. The site should establish credibility and drive customer engagement.
+Business: ${businessName}
+Location: ${locationStr}`;
 
-BUSINESS OVERVIEW
-[content here...]
-
-Write confidently and professionally. If specific details are unknown, keep content generic but compelling.`;
-
-    const result = streamText({
+    const userPrompt = `Generate a website prompt for ${businessName} in ${locationStr}. Create all 8 sections now.`;
+    
+    console.log("Sending to model...");
+    
+    const { text } = await generateText({
       model: client(model),
       system: systemPrompt,
-      prompt: `Generate a complete website prompt for a business located at the provided URL. The business type should be inferred from the name and location context.`,
+      prompt: userPrompt,
       temperature: 0.3,
       maxOutputTokens: 1500,
     });
 
-    return result.toTextStreamResponse();
+    console.log("Generated text length:", text?.length || 0);
+    
+    if (!text || text.trim().length === 0) {
+      throw new Error("Model returned empty response");
+    }
+    
+    console.log("Text preview:", text.substring(0, 100));
+
+    return new Response(
+      JSON.stringify({ prompt: text }),
+      { 
+        status: 200, 
+        headers: { 
+          'Content-Type': 'application/json',
+        } 
+      }
+    );
   } catch (error) {
     console.error("Error in generate route:", error);
     
@@ -70,8 +86,9 @@ Write confidently and professionally. If specific details are unknown, keep cont
       );
     }
     
+    const errorMessage = error instanceof Error ? error.message : "Failed to generate prompt";
     return new Response(
-      JSON.stringify({ error: "Failed to generate prompt" }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
