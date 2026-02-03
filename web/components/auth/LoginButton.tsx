@@ -5,7 +5,25 @@ import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { Button } from "@/components/ui/button";
 
 export function LoginButton() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading } = useAuth();
+
+  // Debug logging
+  if (process.env.NODE_ENV === "development" || typeof window !== "undefined") {
+    console.log("[LoginButton Debug] Auth state:", { 
+      hasUser: !!user, 
+      userId: user?.id,
+      loading,
+      redirectUri: process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI
+    });
+  }
+
+  if (loading) {
+    return (
+      <Button size="sm" variant="ghost" disabled>
+        Loading...
+      </Button>
+    );
+  }
 
   if (user) {
     return (
