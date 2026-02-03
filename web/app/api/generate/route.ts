@@ -8,21 +8,36 @@ export const runtime = "edge";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { googleMapsUrl } = generatePromptSchema.parse(body);
+    const { googleMapsUrl, parsedLocation: clientParsedLocation } = generatePromptSchema.parse(body);
     
-    const location = parseGoogleMapsUrl(googleMapsUrl);
-    console.log("Extracted location:", location);
+    // Use client-parsed location if available, otherwise parse on server
+    let location;
+    if (clientParsedLocation) {
+      location = clientParsedLocation;
+      console.log("Using client-parsed location:", location);
+    } else {
+      location = await parseGoogleMapsUrl(googleMapsUrl);
+      console.log("Server-parsed location:", location);
+    }
     
     const { client, model } = createOpenRouterClient();
     console.log("Using model:", model);
     
-    // Build context string
+// Build context string
     const businessName = location.businessName || "Local Business";
     const locationStr = location.locality || location.city || location.area || "Unknown location";
     
-    console.log("Business:", businessName, "| Location:", locationStr);
+    // Additional context for better prompts
+    const urlTypeContext = location.urlType && location.urlType !== 'unknown' ? 
+      ` (URL type: ${location.urlType})` : '';
+    const domainContext = location.domainType && location.domainType !== 'unknown' ? 
+      ` (source: ${location.domainType})` : '';
+    const confidenceContext = location.extractionConfidence ? 
+      ` (confidence: ${location.extractionConfidence})` : '';
     
-    // Simplified prompt for arcee model
+    console.log("Business:", businessName, "| Location:", locationStr, "| URL Type:", location.urlType, "| Domain:", location.domainType);
+    
+// Enhanced prompt with URL type awareness
     const systemPrompt = `You are a website prompt generator. Create structured website prompts.
 
 Generate a complete website generation prompt with these 8 sections:
@@ -43,9 +58,15 @@ Instructions:
 - Infer business type from the name
 - Never mention Google Maps or URLs
 - Never make up awards or years in business
+- Adjust content specificity based on data confidence
+- High confidence: Use specific details
+- Medium confidence: Include some specifics but note limitations
+- Low confidence: Focus on general business type${urlTypeContext}${domainContext}${confidenceContext}
 
 Business: ${businessName}
-Location: ${locationStr}`;
+Location: ${locationStr}
+Data Source: ${location.domainType || 'Unknown'}
+Extraction Confidence: ${location.extractionConfidence || 'Unknown'}`;
 
     const userPrompt = `Generate a website prompt for ${businessName} in ${locationStr}. Create all 8 sections now.`;
     

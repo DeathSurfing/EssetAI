@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { parseGoogleMapsUrl } from "@/lib/location-parser";
+import { parseGoogleMapsUrl, parseGoogleMapsUrlSync } from "@/lib/location-parser";
 import { PromptQualityScore } from "@/lib/prompt-quality";
 import { SectionState, parseSections, calculateSectionsQualityScore } from "@/lib/prompt-parser";
 
@@ -19,7 +19,7 @@ interface UsePromptGenerationReturn {
   businessContext: BusinessContext | null;
   generatedPrompt: string;
   streamingText: string;
-  generatePrompt: (googleMapsUrl: string) => Promise<void>;
+  generatePrompt: (googleMapsUrl: string, parsedLocation?: any) => Promise<void>;
   clearError: () => void;
 }
 
@@ -36,7 +36,7 @@ export function usePromptGeneration(): UsePromptGenerationReturn {
     .map((s) => `${s.header}\n${s.content}`)
     .join("\n\n");
 
-  const generatePrompt = useCallback(async (googleMapsUrl: string) => {
+const generatePrompt = useCallback(async (googleMapsUrl: string, parsedLocation?: any) => {
     if (!googleMapsUrl.trim()) return;
 
     setIsLoading(true);
@@ -48,7 +48,17 @@ export function usePromptGeneration(): UsePromptGenerationReturn {
     try {
       console.log("Submitting URL:", googleMapsUrl);
 
-      const location = parseGoogleMapsUrl(googleMapsUrl);
+      // Use client-parsed location if available, otherwise parse on server
+      let location;
+      if (parsedLocation) {
+        location = parsedLocation;
+        console.log("Using client-parsed location:", location);
+      } else {
+        // Fallback to sync parsing for backward compatibility
+        location = parseGoogleMapsUrlSync(googleMapsUrl);
+        console.log("Using fallback sync parsing:", location);
+      }
+      
       setBusinessContext({
         name: location.businessName || "Local Business",
         location: location.locality || location.city || location.area || "Unknown location",
@@ -59,6 +69,7 @@ export function usePromptGeneration(): UsePromptGenerationReturn {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           googleMapsUrl,
+          parsedLocation: location,
         }),
       });
 

@@ -95,22 +95,27 @@ export default function Home() {
     }
   }, [isLoading, sections, businessContext, generatedPrompt, addPrompt]);
 
-  // Handle generate with animation
-  const handleGenerate = useCallback(async () => {
+// Handle generate with animation
+  const handleGenerate = useCallback(async (parsedLocation?: any) => {
     if (!googleMapsUrl.trim()) return;
 
     // Start animation
     setIsGenerating(true);
     setShowOutput(false);
 
-    // Store pending save info
+    // Store pending save info - we'll update this after generation
     pendingSaveRef.current = {
       url: googleMapsUrl,
-      businessName: businessContext?.name || "Business",
+      businessName: parsedLocation?.businessName || businessContext?.name || "Business",
     };
 
-    // Start the actual generation
-    await generatePrompt(googleMapsUrl);
+    // Start actual generation with parsed location
+    await generatePrompt(googleMapsUrl, parsedLocation);
+
+    // Update pending save with actual business context
+    if (businessContext && pendingSaveRef.current) {
+      pendingSaveRef.current.businessName = businessContext.name;
+    }
 
     // Animation will handle the transition
   }, [googleMapsUrl, generatePrompt, businessContext]);

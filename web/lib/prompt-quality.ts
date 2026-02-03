@@ -3,6 +3,19 @@ import { z } from "zod";
 export const generatePromptSchema = z.object({
   googleMapsUrl: z.string().min(1, "Google Maps URL is required"),
   builder: z.enum(["lovable", "framer", "webflow"]).default("lovable"),
+  parsedLocation: z.object({
+    businessName: z.string().nullable().optional(),
+    area: z.string().nullable().optional(),
+    city: z.string().nullable().optional(),
+    locality: z.string().nullable().optional(),
+    urlType: z.enum(["short", "place", "search", "directions", "coordinates", "unknown"]).optional(),
+    domainType: z.enum(["maps.google.com", "google.com/maps", "unknown"]).optional(),
+    originalUrl: z.string().optional(),
+    expandedUrl: z.string().nullable().optional(),
+    isExpanded: z.boolean().optional(),
+    extractionConfidence: z.enum(["high", "medium", "low"]).optional(),
+    processingPriority: z.number().optional(),
+  }).optional(),
 });
 
 export type GeneratePromptInput = z.infer<typeof generatePromptSchema>;
