@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { InputView } from "@/components/InputView";
@@ -68,10 +68,36 @@ export default function Home() {
     generatePrompt,
   } = usePromptGeneration();
 
+  // Extract business context from sections for regeneration
+  const defaultBusinessContext = useMemo(() => {
+    // Try to get business name from PROJECT CONTEXT or BUSINESS OVERVIEW sections
+    const projectContext = sections.find(s => s.header === "PROJECT CONTEXT");
+    const businessOverview = sections.find(s => s.header === "BUSINESS OVERVIEW");
+    
+    // Extract name from content (usually first line or sentence)
+    const extractName = (content: string) => {
+      const lines = content.split('\n').filter(l => l.trim());
+      return lines[0]?.replace(/^[^a-zA-Z]*/, '').slice(0, 50) || "Business";
+    };
+    
+    const name = projectContext?.content 
+      ? extractName(projectContext.content)
+      : businessOverview?.content 
+      ? extractName(businessOverview.content)
+      : "Business";
+      
+    // Extract location from LOCATION CONTEXT if available
+    const locationContext = sections.find(s => s.header === "LOCATION CONTEXT");
+    const location = locationContext?.content?.slice(0, 100) || "";
+    
+    return { name, location };
+  }, [sections]);
+
   const { regenerateSection, undoSection, editSection, syncSections } = useSectionManagement({
     sections,
     setSections,
     promptId: currentPromptId,
+    defaultBusinessContext,
   });
 
   const { prompts, addPrompt, deletePrompt, searchPrompts } = usePromptHistory();

@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { SectionState, assemblePrompt } from "@/lib/prompt-parser";
 import { PromptQualityScore, calculateQualityScore } from "@/lib/prompt-quality";
 import { Id } from "@/convex/_generated/dataModel";
+import { toast } from "sonner";
 
 interface BusinessContext {
   name: string;
@@ -16,13 +17,14 @@ interface UseSectionManagementParams {
   sections: SectionState[];
   setSections: React.Dispatch<React.SetStateAction<SectionState[]>>;
   promptId?: string;
+  defaultBusinessContext?: BusinessContext;
 }
 
 interface UseSectionManagementReturn {
   regenerateSection: (
     header: string,
     customPrompt: string,
-    businessContext: BusinessContext | null,
+    businessContext?: BusinessContext | null,
     onStream?: (text: string) => void
   ) => Promise<void>;
   undoSection: (header: string) => void;
@@ -35,6 +37,7 @@ export function useSectionManagement({
   sections,
   setSections,
   promptId,
+  defaultBusinessContext,
 }: UseSectionManagementParams): UseSectionManagementReturn {
   // Convex mutation for saving sections
   const updatePromptSections = useMutation(api.prompts.updatePromptSections);
@@ -43,10 +46,16 @@ export function useSectionManagement({
     async (
       header: string,
       customPrompt: string,
-      businessContext: BusinessContext | null,
+      businessContext?: BusinessContext | null,
       onStream?: (text: string) => void
     ) => {
-      if (!businessContext) return;
+      // Use provided businessContext, or default, or extract from sections
+      const effectiveBusinessContext = businessContext || defaultBusinessContext;
+      
+      if (!effectiveBusinessContext) {
+        toast.error("Cannot regenerate: Missing business context. Please reload the page.");
+        return;
+      }
 
       const sectionIndex = sections.findIndex((s) => s.header === header);
       if (sectionIndex === -1) return;
@@ -74,7 +83,7 @@ export function useSectionManagement({
               content: s.content,
             })),
             customInstructions: customPrompt,
-            businessContext,
+            businessContext: effectiveBusinessContext,
           }),
         });
 
@@ -145,6 +154,7 @@ export function useSectionManagement({
         }
       } catch (err) {
         console.error("Regenerate error:", err);
+        toast.error(err instanceof Error ? err.message : "Failed to regenerate section");
         setSections((prev) =>
           prev.map((s, i) =>
             i === sectionIndex
@@ -159,7 +169,7 @@ export function useSectionManagement({
         throw err;
       }
     },
-    [sections, setSections, promptId, updatePromptSections]
+    [sections, setSections, promptId, updatePromptSections, defaultBusinessContext]
   );
 
   const undoSection = useCallback(
