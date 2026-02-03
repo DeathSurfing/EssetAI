@@ -1,17 +1,10 @@
 "use client";
 
 import * as React from "react";
-import gsap from "gsap";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { RefreshIcon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Textarea } from "@/components/ui/textarea";
+import { useSectionAnimations } from "@/hooks/useSectionAnimations";
+import { SectionHeader } from "@/components/section/SectionHeader";
+import { EditableContent } from "@/components/section/EditableContent";
 
 interface SectionCardProps {
   header: string;
@@ -36,53 +29,17 @@ export function SectionCard({
   onRegenerate,
   onUndo,
   onEdit,
-  allSections,
 }: SectionCardProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [customPrompt, setCustomPrompt] = React.useState("");
   const [isEditing, setIsEditing] = React.useState(false);
   const [editedContent, setEditedContent] = React.useState(content);
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
-  const cardRef = React.useRef<HTMLDivElement>(null);
 
-  // GSAP entrance animation
-  React.useEffect(() => {
-    if (cardRef.current) {
-      gsap.fromTo(
-        cardRef.current,
-        { opacity: 0, x: -20 },
-        { 
-          opacity: 1, 
-          x: 0, 
-          duration: 0.5, 
-          delay: index * 0.1,
-          ease: "power3.out" 
-        }
-      );
-    }
-  }, [index]);
+  const { cardRef, textareaRef, handleMouseEnter, handleMouseLeave } = useSectionAnimations({
+    index,
+    isEditing,
+  });
 
-  // Hover animation handlers
-  const handleMouseEnter = () => {
-    if (cardRef.current) {
-      gsap.to(cardRef.current, {
-        x: 5,
-        duration: 0.3,
-        ease: "power2.out"
-      });
-    }
-  };
-
-  const handleMouseLeave = () => {
-    if (cardRef.current) {
-      gsap.to(cardRef.current, {
-        x: 0,
-        duration: 0.3,
-        ease: "power2.out"
-      });
-    }
-  };
-  
   // Update editedContent when content changes externally
   React.useEffect(() => {
     if (!isEditing) {
@@ -105,38 +62,29 @@ export function SectionCard({
     setIsOpen(false);
     setCustomPrompt("");
   };
-  
+
   const handleContentClick = () => {
     setIsEditing(true);
-    // Auto-focus textarea after render
     setTimeout(() => textareaRef.current?.focus(), 0);
   };
-  
+
   const handleContentBlur = () => {
     setIsEditing(false);
     if (editedContent !== content) {
       onEdit(header, editedContent);
     }
   };
-  
+
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setEditedContent(e.target.value);
   };
-  
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       setIsEditing(false);
-      setEditedContent(content); // Revert on Escape
+      setEditedContent(content);
     }
   };
-
-  // Auto-resize textarea to fit content
-  React.useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  }, [editedContent, isEditing]);
 
   return (
     <div
@@ -145,121 +93,32 @@ export function SectionCard({
       onMouseLeave={handleMouseLeave}
       className={cn(
         "border-l-2 pl-4 py-2 transition-all duration-300 relative group",
-        header
-          ? "border-primary bg-primary/5"
-          : "border-border"
+        header ? "border-primary bg-primary/5" : "border-border"
       )}
     >
-      {header && (
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <h4 className="text-sm font-bold text-primary uppercase tracking-wide">
-              {header}
-            </h4>
-            {isRegenerating && (
-              <span className="text-xs text-muted-foreground animate-pulse bg-muted px-2 py-0.5 rounded">
-                Regenerating...
-              </span>
-            )}
-            {isDirty && !isRegenerating && (
-              <span className="text-xs text-orange-500 bg-orange-100 dark:bg-orange-900/20 px-2 py-0.5 rounded">
-                Edited
-              </span>
-            )}
-          </div>
-          
-          <Popover open={isOpen} onOpenChange={setIsOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                title="Regenerate section"
-              >
-                <HugeiconsIcon icon={RefreshIcon} size={16} className="text-muted-foreground" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent 
-              className="w-80 p-4" 
-              align="end"
-              sideOffset={5}
-            >
-              <div className="space-y-3">
-                <div>
-                  <h5 className="font-medium text-sm mb-1">
-                    Regenerate: {header}
-                  </h5>
-                  <p className="text-xs text-muted-foreground">
-                    Enter custom instructions to modify this section.
-                  </p>
-                </div>
-                
-                <Textarea
-                  placeholder="e.g., Make it more focused on fine dining..."
-                  value={customPrompt}
-                  onChange={(e) => setCustomPrompt(e.target.value)}
-                  className="min-h-[80px] text-sm"
-                />
-                
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={handleApply}
-                    disabled={isRegenerating || !customPrompt.trim()}
-                    size="sm"
-                    className="flex-1"
-                  >
-                    {isRegenerating ? (
-                      <>
-                        <HugeiconsIcon icon={RefreshIcon} size={12} className="mr-1 animate-spin" />
-                        Applying...
-                      </>
-                    ) : (
-                      "Apply"
-                    )}
-                  </Button>
-                  
-                  {previousContent && (
-                    <Button
-                      onClick={handleUndo}
-                      disabled={isRegenerating}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Undo
-                    </Button>
-                  )}
-                  
-                  <Button
-                    onClick={handleCancel}
-                    disabled={isRegenerating}
-                    variant="ghost"
-                    size="sm"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-      )}
-      {isEditing ? (
-        <textarea
-          ref={textareaRef}
-          value={editedContent}
-          onChange={handleContentChange}
-          onBlur={handleContentBlur}
-          onKeyDown={handleKeyDown}
-          className="w-full p-2 font-mono text-sm bg-background border-2 border-primary rounded-md resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
-      ) : (
-        <div 
-          onClick={handleContentClick}
-          className="font-mono text-sm whitespace-pre-wrap text-foreground leading-relaxed cursor-text hover:bg-accent/30 p-2 rounded transition-colors"
-        >
-          {content}
-        </div>
-      )}
+      <SectionHeader
+        header={header}
+        isRegenerating={isRegenerating}
+        isDirty={isDirty}
+        previousContent={previousContent}
+        customPrompt={customPrompt}
+        isOpen={isOpen}
+        onOpenChange={setIsOpen}
+        onCustomPromptChange={setCustomPrompt}
+        onApply={handleApply}
+        onUndo={handleUndo}
+        onCancel={handleCancel}
+      />
+      <EditableContent
+        content={content}
+        isEditing={isEditing}
+        editedContent={editedContent}
+        textareaRef={textareaRef}
+        onContentClick={handleContentClick}
+        onContentChange={handleContentChange}
+        onContentBlur={handleContentBlur}
+        onKeyDown={handleKeyDown}
+      />
     </div>
   );
 }
