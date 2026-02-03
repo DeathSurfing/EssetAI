@@ -61,7 +61,7 @@ const convertConvexPrompt = (prompt: any): SavedPrompt => ({
 interface UsePromptHistoryReturn {
   prompts: SavedPrompt[];
   isLoading: boolean;
-  addPrompt: (prompt: Omit<SavedPrompt, "id" | "timestamp">) => Promise<void>;
+  addPrompt: (prompt: Omit<SavedPrompt, "id" | "timestamp">) => Promise<string>;
   deletePrompt: (id: string) => Promise<void>;
   searchPrompts: (query: string) => SavedPrompt[];
   getPromptById: (id: string) => SavedPrompt | undefined;
@@ -121,7 +121,7 @@ export function usePromptHistory(): UsePromptHistoryReturn {
   }, [localPrompts, isAuthenticated]);
 
   const addPrompt = useCallback(
-    async (prompt: Omit<SavedPrompt, "id" | "timestamp">) => {
+    async (prompt: Omit<SavedPrompt, "id" | "timestamp">): Promise<string> => {
       if (isAuthenticated) {
         // Save to Convex - strip extra fields from sections
         try {
@@ -130,12 +130,13 @@ export function usePromptHistory(): UsePromptHistoryReturn {
             content: section.content,
           }));
 
-          await createPrompt({
+          const promptId = await createPrompt({
             placeName: prompt.placeName,
             url: prompt.url,
             sections: cleanSections,
           });
           toast.success("Prompt saved to your account");
+          return promptId;
         } catch (error) {
           console.error("Failed to save prompt to Convex:", error);
           toast.error("Failed to save prompt");
@@ -152,6 +153,7 @@ export function usePromptHistory(): UsePromptHistoryReturn {
         const updated = [newPrompt, ...localPrompts].slice(0, MAX_ITEMS);
         saveToStorage(updated);
         setLocalPrompts(updated);
+        return newPrompt.id;
       }
     },
     [isAuthenticated, localPrompts, createPrompt]

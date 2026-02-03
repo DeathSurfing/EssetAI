@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { MapPin, ArrowLeft, Sparkles } from "lucide-react";
+import { MapPin, ArrowLeft, Sparkles, Users, Share2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StreamingPromptOutput } from "./StreamingPromptOutput";
@@ -10,6 +10,8 @@ import { PromptQualityScoreDisplay } from "./PromptQualityScore";
 import { SectionState } from "@/lib/prompt-parser";
 import { PromptQualityScore } from "@/lib/prompt-quality";
 import { cn } from "@/lib/utils";
+import { ShareDialog } from "./ShareDialog";
+import { InviteDialog } from "./InviteDialog";
 
 interface OutputViewProps {
   googleMapsUrl: string;
@@ -23,6 +25,13 @@ interface OutputViewProps {
   onEditSection: (header: string, newContent: string) => void;
   onBack?: () => void;
   showUrlInput?: boolean;
+  promptId?: string;
+  isOwner?: boolean;
+  userRole?: "free" | "normal" | "paid" | "admin";
+  shareMode?: "view" | "edit";
+  isPublic?: boolean;
+  shareToken?: string;
+  collaborators?: Array<{ userId: string; name: string; email?: string; avatar?: string }>;
 }
 
 export function OutputView({
@@ -37,10 +46,19 @@ export function OutputView({
   onEditSection,
   onBack,
   showUrlInput = true,
+  promptId,
+  isOwner = false,
+  userRole = "free",
+  shareMode = "view",
+  isPublic = false,
+  shareToken,
+  collaborators = [],
 }: OutputViewProps) {
+  const canShare = !!promptId;
+
   return (
     <div className="w-full h-full flex flex-col">
-      {/* Top Bar with URL Input and Back Button */}
+      {/* Top Bar with URL Input, Back Button, and Share */}
       {showUrlInput && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -76,6 +94,32 @@ export function OutputView({
                 className="pl-10 bg-background"
               />
             </div>
+
+            {/* Share Buttons - Only show when prompt is saved */}
+            {canShare && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-2"
+              >
+                <ShareDialog
+                  promptId={promptId}
+                  isOwner={isOwner}
+                  currentMode={shareMode}
+                  isPublic={isPublic}
+                  shareToken={shareToken}
+                />
+                
+                {isOwner && (
+                  <InviteDialog
+                    promptId={promptId}
+                    isOwner={isOwner}
+                    userRole={userRole}
+                    currentCollaborators={collaborators}
+                  />
+                )}
+              </motion.div>
+            )}
 
             {isLoading && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -42,7 +42,8 @@ export default defineSchema({
     .index("by_shareToken", ["shareToken"]),
 
   generations: defineTable({
-    userId: v.optional(v.id("users")),
+    userId: v.optional(v.id("users")), // User who initiated the generation
+    ownerId: v.optional(v.id("users")), // User whose credits were used (owner for collaborators)
     fingerprint: v.optional(v.string()),
     promptId: v.optional(v.id("prompts")),
     createdAt: v.number(),
@@ -50,10 +51,13 @@ export default defineSchema({
       v.literal("full"),
       v.literal("section")
     ),
+    isCollaborator: v.optional(v.boolean()), // True if this was a collaborator using owner's credits
   })
     .index("by_userId", ["userId"])
+    .index("by_ownerId", ["ownerId"])
     .index("by_fingerprint", ["fingerprint"])
-    .index("by_userId_createdAt", ["userId", "createdAt"]),
+    .index("by_userId_createdAt", ["userId", "createdAt"])
+    .index("by_ownerId_createdAt", ["ownerId", "createdAt"]),
 
   anonymousUsage: defineTable({
     fingerprint: v.string(),
@@ -99,4 +103,27 @@ export default defineSchema({
     .index("by_promptId", ["promptId"])
     .index("by_promptId_timestamp", ["promptId", "timestamp"])
     .index("by_promptId_version", ["promptId", "version"]),
+
+  // Collaboration invites - pending invites via magic links
+  collaborationInvites: defineTable({
+    promptId: v.id("prompts"),
+    ownerId: v.id("users"),
+    inviteToken: v.string(),
+    email: v.optional(v.string()), // Optional: pre-fill email for specific invites
+    invitedBy: v.id("users"),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    acceptedAt: v.optional(v.number()),
+    acceptedBy: v.optional(v.id("users")),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("accepted"),
+      v.literal("expired"),
+      v.literal("revoked")
+    ),
+  })
+    .index("by_token", ["inviteToken"])
+    .index("by_promptId", ["promptId"])
+    .index("by_email", ["email"])
+    .index("by_status", ["status"]),
 });

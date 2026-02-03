@@ -9,6 +9,7 @@
  */
 
 import type * as collaboration from "../collaboration.js";
+import type * as collaborationInvites from "../collaborationInvites.js";
 import type * as generations from "../generations.js";
 import type * as prompts from "../prompts.js";
 import type * as users from "../users.js";
@@ -21,6 +22,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   collaboration: typeof collaboration;
+  collaborationInvites: typeof collaborationInvites;
   generations: typeof generations;
   prompts: typeof prompts;
   users: typeof users;

@@ -12,6 +12,9 @@ import { usePromptHistory } from "@/hooks/usePromptHistory";
 import { SavedPrompt } from "@/hooks/usePromptHistory";
 import { PromptMigration } from "@/components/auth/PromptMigration";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
 
 type ViewState = "input" | "output";
 
@@ -68,6 +71,25 @@ export default function Home() {
   });
 
   const { prompts, addPrompt, deletePrompt, searchPrompts } = usePromptHistory();
+  const { user } = useAuth();
+
+  // Fetch prompt access info when viewing a specific prompt
+  const promptAccess = useQuery(
+    api.collaborationInvites.getPromptAccess,
+    currentPromptId ? { promptId: currentPromptId as any } : "skip"
+  );
+
+  // Fetch collaborators for the current prompt
+  const collaborators = useQuery(
+    api.collaborationInvites.getCollaborators,
+    currentPromptId ? { promptId: currentPromptId as any } : "skip"
+  );
+
+  // Fetch current user info for role
+  const currentUser = useQuery(
+    api.users.getCurrentUser,
+    user ? {} : "skip"
+  );
 
   // Filtered prompts based on search
   const filteredPrompts = searchQuery
@@ -76,24 +98,31 @@ export default function Home() {
 
   // Save prompt after generation completes
   useEffect(() => {
-    if (
-      pendingSaveRef.current &&
-      !isLoading &&
-      sections.length > 0 &&
-      businessContext
-    ) {
-      // Generation is complete, save the prompt
-      addPrompt({
-        placeName: businessContext.name,
-        url: pendingSaveRef.current.url,
-        promptPreview: generatedPrompt.slice(0, 150) + "...",
-        fullPrompt: generatedPrompt,
-        sections: sections,
-      });
-      
-      // Clear the pending save
-      pendingSaveRef.current = null;
-    }
+    const savePrompt = async () => {
+      if (
+        pendingSaveRef.current &&
+        !isLoading &&
+        sections.length > 0 &&
+        businessContext
+      ) {
+        // Generation is complete, save the prompt
+        const promptId = await addPrompt({
+          placeName: businessContext.name,
+          url: pendingSaveRef.current.url,
+          promptPreview: generatedPrompt.slice(0, 150) + "...",
+          fullPrompt: generatedPrompt,
+          sections: sections,
+        });
+        
+        // Store the prompt ID for sharing
+        setCurrentPromptId(promptId);
+        
+        // Clear the pending save
+        pendingSaveRef.current = null;
+      }
+    };
+    
+    savePrompt();
   }, [isLoading, sections, businessContext, generatedPrompt, addPrompt]);
 
 // Handle generate with animation
@@ -249,7 +278,12 @@ export default function Home() {
                 onUndoSection={handleUndoSection}
                 onEditSection={handleEditSection}
                 onBack={handleHomeClick}
-                showUrlInput={true}
+                promptId={currentPromptId}
+                isOwner={promptAccess?.access === "owner"}
+                userRole={currentUser?.role || "free"}
+                shareMode={promptAccess?.access === "collaborator" ? "edit" : "view"}
+                isPublic={false}
+                collaborators={collaborators || []}
               />
             </motion.div>
           )}
