@@ -1,4 +1,5 @@
 import { expandGoogleMapsUrl, getUrlProcessingPriority, getExtractionConfidence } from './url-expander';
+import { reverseGeocode, formatNominatimContext, NominatimResult } from './nominatim';
 
 export interface ParsedLocation {
   businessName: string | null;
@@ -12,6 +13,10 @@ export interface ParsedLocation {
   isExpanded: boolean;
   extractionConfidence: 'high' | 'medium' | 'low';
   processingPriority: number;
+  // Nominatim enriched data
+  coordinates?: { lat: number; lng: number };
+  nominatimData?: NominatimResult;
+  nominatimError?: string;
 }
 
 /**
@@ -114,12 +119,77 @@ export async function parseGoogleMapsUrl(url: string): Promise<ParsedLocation> {
       }
     }
     
-    // Extract coordinates from @lat,lng pattern
+    // Extract coordinates and call Nominatim for enriched data
+    let coordinates: { lat: number; lng: number } | undefined;
+    let nominatimData: NominatimResult | undefined;
+    let nominatimError: string | undefined;
+    
+    // Try to extract coordinates from @lat,lng pattern
     const coordsMatch = workingDecodedUrl.match(/@([-\d.]+),([-\d.]+)/);
-    if (coordsMatch && !locality) {
-      const lat = coordsMatch[1];
-      const lng = coordsMatch[2];
-      locality = `Coordinates: ${lat}, ${lng}`;
+    if (coordsMatch) {
+      coordinates = {
+        lat: parseFloat(coordsMatch[1]),
+        lng: parseFloat(coordsMatch[2]),
+      };
+    }
+    
+    // Try ll parameter
+    if (!coordinates) {
+      const llParam = workingUrlObj.searchParams.get('ll');
+      if (llParam) {
+        const [lat, lng] = llParam.split(',').map(Number);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          coordinates = { lat, lng };
+        }
+      }
+    }
+    
+    // Try lat/lng parameters
+    if (!coordinates) {
+      const latParam = workingUrlObj.searchParams.get('lat');
+      const lngParam = workingUrlObj.searchParams.get('lng') || workingUrlObj.searchParams.get('lon');
+      if (latParam && lngParam) {
+        const lat = Number(latParam);
+        const lng = Number(lngParam);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          coordinates = { lat, lng };
+        }
+      }
+    }
+    
+    // If we have coordinates, call Nominatim for enriched data
+    if (coordinates && !locality) {
+      try {
+        // Add delay to respect Nominatim rate limit (1 req/sec)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const nominatimResult = await reverseGeocode(coordinates.lat, coordinates.lng, 5000);
+        if (nominatimResult) {
+          nominatimData = nominatimResult;
+          
+          // Use Nominatim data to populate fields
+          if (nominatimResult.display_name) {
+            locality = nominatimResult.display_name;
+          }
+          
+          if (nominatimResult.address.city) {
+            city = nominatimResult.address.city;
+          }
+          
+          if (nominatimResult.address.suburb) {
+            area = nominatimResult.address.suburb;
+          }
+          
+          extractionConfidence = 'high';
+        }
+      } catch (error) {
+        console.error('Nominatim lookup failed:', error);
+        nominatimError = error instanceof Error ? error.message : 'Failed to fetch location data';
+        // Fallback to coordinates string
+        locality = `Coordinates: ${coordinates.lat}, ${coordinates.lng}`;
+      }
+    } else if (coordinates && !locality) {
+      locality = `Coordinates: ${coordinates.lat}, ${coordinates.lng}`;
     }
     
     // Extract from search query parameter
@@ -215,6 +285,9 @@ export async function parseGoogleMapsUrl(url: string): Promise<ParsedLocation> {
       isExpanded: expansionResult.isExpanded,
       extractionConfidence: finalConfidence,
       processingPriority,
+      coordinates,
+      nominatimData,
+      nominatimError,
     };
   } catch {
     // Return minimal info if URL parsing fails
@@ -261,9 +334,9 @@ export function parseGoogleMapsUrlSync(url: string): ParsedLocation {
     const domainType = detectDomainType(url);
     
     let businessName: string | null = null;
-    let area: string | null = null;
-    let city: string | null = null;
-    let locality: string | null = null;
+    const area: string | null = null;
+    const city: string | null = null;
+    const locality: string | null = null;
     let extractionConfidence: 'high' | 'medium' | 'low' = 'low';
     
     // Basic extraction logic (simplified from async version)
@@ -327,13 +400,21 @@ export function formatLocationContext(location: ParsedLocation): string {
     parts.push(`Business Name: ${location.businessName}`);
   }
   
-  if (location.locality) {
+  // Include Nominatim enriched data if available
+  if (location.nominatimData) {
+    parts.push(formatNominatimContext(location.nominatimData));
+  } else if (location.locality) {
     parts.push(`Locality: ${location.locality}`);
   } else if (location.city) {
     parts.push(`City: ${location.city}`);
     if (location.area) {
       parts.push(`Area: ${location.area}`);
     }
+  }
+  
+  // Show error if Nominatim failed
+  if (location.nominatimError) {
+    parts.push(`Location Data Error: ${location.nominatimError}`);
   }
   
   // Add URL type info for context

@@ -15,6 +15,12 @@ export const generatePromptSchema = z.object({
     isExpanded: z.boolean().optional(),
     extractionConfidence: z.enum(["high", "medium", "low"]).optional(),
     processingPriority: z.number().optional(),
+    coordinates: z.object({
+      lat: z.number(),
+      lng: z.number(),
+    }).optional(),
+    nominatimData: z.any().optional(),
+    nominatimError: z.string().optional(),
   }).optional(),
 });
 

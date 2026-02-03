@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { parseGoogleMapsUrl, parseGoogleMapsUrlSync } from "@/lib/location-parser";
+import { parseGoogleMapsUrlSync } from "@/lib/location-parser";
 import { PromptQualityScore } from "@/lib/prompt-quality";
 import { SectionState, parseSections, calculateSectionsQualityScore } from "@/lib/prompt-parser";
 

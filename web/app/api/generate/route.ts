@@ -1,6 +1,6 @@
 import { streamText } from "ai";
 import { createOpenRouterClient } from "@/lib/openrouter";
-import { parseGoogleMapsUrl } from "@/lib/location-parser";
+import { parseGoogleMapsUrl, formatLocationContext } from "@/lib/location-parser";
 import { generatePromptSchema } from "@/lib/prompt-quality";
 
 export const runtime = "edge";
@@ -13,7 +13,21 @@ export async function POST(req: Request) {
     // Use client-parsed location if available, otherwise parse on server
     let location;
     if (clientParsedLocation) {
-      location = clientParsedLocation;
+      // Normalize undefined values to ensure type compatibility
+      location = {
+        ...clientParsedLocation,
+        businessName: clientParsedLocation.businessName ?? null,
+        area: clientParsedLocation.area ?? null,
+        city: clientParsedLocation.city ?? null,
+        locality: clientParsedLocation.locality ?? null,
+        urlType: clientParsedLocation.urlType ?? 'unknown',
+        domainType: clientParsedLocation.domainType ?? 'unknown',
+        originalUrl: clientParsedLocation.originalUrl ?? googleMapsUrl,
+        expandedUrl: clientParsedLocation.expandedUrl ?? null,
+        isExpanded: clientParsedLocation.isExpanded ?? false,
+        extractionConfidence: clientParsedLocation.extractionConfidence ?? 'low',
+        processingPriority: clientParsedLocation.processingPriority ?? 3,
+      };
       console.log("Using client-parsed location:", location);
     } else {
       location = await parseGoogleMapsUrl(googleMapsUrl);
@@ -23,21 +37,13 @@ export async function POST(req: Request) {
     const { client, model } = createOpenRouterClient();
     console.log("Using model:", model);
     
-// Build context string
+    // Build location context using enriched data
+    const locationContext = formatLocationContext(location);
     const businessName = location.businessName || "Local Business";
-    const locationStr = location.locality || location.city || location.area || "Unknown location";
     
-    // Additional context for better prompts
-    const urlTypeContext = location.urlType && location.urlType !== 'unknown' ? 
-      ` (URL type: ${location.urlType})` : '';
-    const domainContext = location.domainType && location.domainType !== 'unknown' ? 
-      ` (source: ${location.domainType})` : '';
-    const confidenceContext = location.extractionConfidence ? 
-      ` (confidence: ${location.extractionConfidence})` : '';
+    console.log("Business:", businessName, "| Location Context:", locationContext.substring(0, 100) + "...");
     
-    console.log("Business:", businessName, "| Location:", locationStr, "| URL Type:", location.urlType, "| Domain:", location.domainType);
-    
-// Enhanced prompt with URL type awareness
+    // Enhanced prompt with URL type awareness and Nominatim data
     const systemPrompt = `You are a website prompt generator. Create structured website prompts.
 
 Generate a complete website generation prompt with these 8 sections:
@@ -61,14 +67,13 @@ Instructions:
 - Adjust content specificity based on data confidence
 - High confidence: Use specific details
 - Medium confidence: Include some specifics but note limitations
-- Low confidence: Focus on general business type${urlTypeContext}${domainContext}${confidenceContext}
+- Low confidence: Focus on general business type
 
-Business: ${businessName}
-Location: ${locationStr}
-Data Source: ${location.domainType || 'Unknown'}
-Extraction Confidence: ${location.extractionConfidence || 'Unknown'}`;
+${locationContext}
 
-    const userPrompt = `Generate a website prompt for ${businessName} in ${locationStr}. Create all 8 sections now.`;
+Business Name: ${businessName}`;
+
+    const userPrompt = `Generate a website prompt for ${businessName}. Create all 8 sections now.`;
     
     console.log("Sending to model...");
     

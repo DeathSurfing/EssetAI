@@ -1,21 +1,23 @@
 "use client";
 
 import * as React from "react";
-import { parseGoogleMapsUrl } from "@/lib/location-parser";
+import { parseGoogleMapsUrlSync } from "@/lib/location-parser";
 
 interface MapEmbedProps {
   mapsUrl: string;
 }
 
 export function MapEmbed({ mapsUrl }: MapEmbedProps) {
-  // Parse location data from URL
+  const iframeRef = React.useRef<HTMLIFrameElement>(null);
+  
+  // Parse location data from URL (sync version for client-side)
   const location = React.useMemo(() => {
     if (!mapsUrl) return null;
-    return parseGoogleMapsUrl(mapsUrl);
+    return parseGoogleMapsUrlSync(mapsUrl);
   }, [mapsUrl]);
 
   // Convert Google Maps URL to embed URL with pin marker
-  const getEmbedUrl = (url: string): string | null => {
+  const getEmbedUrl = React.useCallback((url: string): string | null => {
     if (!url) return null;
     
     try {
@@ -26,6 +28,23 @@ export function MapEmbed({ mapsUrl }: MapEmbedProps) {
         const lng = coordsMatch[2];
         // Use coordinates directly in embed URL
         return `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed`;
+      }
+      
+      // Try ll parameter
+      const urlObj = new URL(url);
+      const llParam = urlObj.searchParams.get('ll');
+      if (llParam) {
+        const [lat, lng] = llParam.split(',');
+        if (lat && lng) {
+          return `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed`;
+        }
+      }
+      
+      // Try lat/lng parameters
+      const latParam = urlObj.searchParams.get('lat');
+      const lngParam = urlObj.searchParams.get('lng') || urlObj.searchParams.get('lon');
+      if (latParam && lngParam) {
+        return `https://maps.google.com/maps?q=${latParam},${lngParam}&z=16&output=embed`;
       }
       
       // Try to extract place name from /place/ URL
@@ -50,9 +69,16 @@ export function MapEmbed({ mapsUrl }: MapEmbedProps) {
     } catch {
       return null;
     }
-  };
+  }, []);
   
-  const embedUrl = getEmbedUrl(mapsUrl);
+  const embedUrl = React.useMemo(() => getEmbedUrl(mapsUrl), [mapsUrl, getEmbedUrl]);
+  
+  // Force iframe reload when URL changes
+  React.useEffect(() => {
+    if (iframeRef.current && embedUrl) {
+      iframeRef.current.src = embedUrl;
+    }
+  }, [embedUrl, mapsUrl]);
   
   if (!embedUrl) {
     return (
@@ -83,6 +109,8 @@ export function MapEmbed({ mapsUrl }: MapEmbedProps) {
       {/* Map Embed */}
       <div className="flex-1 rounded-lg overflow-hidden border border-border bg-muted min-h-[150px]">
         <iframe
+          ref={iframeRef}
+          key={mapsUrl} // Force re-render when URL changes
           src={embedUrl}
           width="100%"
           height="100%"
@@ -90,7 +118,7 @@ export function MapEmbed({ mapsUrl }: MapEmbedProps) {
           allowFullScreen
           loading="lazy"
           referrerPolicy="no-referrer-when-downgrade"
-          title="Google Maps"
+          title={`Google Maps - ${location?.businessName || 'Location'}`}
         />
       </div>
     </div>
