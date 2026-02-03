@@ -13,6 +13,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Logo } from "@/components/Logo";
 import { SavedPrompt } from "@/hooks/usePromptHistory";
 
 interface SidebarProps {
@@ -89,6 +90,7 @@ export function Sidebar({
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
+                  <Logo className="w-7 h-7" />
                   <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
                     esset.ai
                   </span>
