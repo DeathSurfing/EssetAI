@@ -37,15 +37,30 @@ export const getPrompt = query({
       : null;
 
     const isOwner = user && prompt.userId === user._id;
+    const isCollaborator = user && prompt.collaborators?.includes(user._id);
     const isPublic = prompt.isPublic || prompt.shareToken;
+    const hasAccess = isOwner || isCollaborator || isPublic;
 
-    if (!isOwner && !isPublic) {
+    if (!hasAccess) {
       throw new Error("Unauthorized");
+    }
+
+    // Get owner info for collaborators
+    let ownerInfo = null;
+    if (!isOwner) {
+      const owner = await ctx.db.get(prompt.userId);
+      ownerInfo = {
+        name: owner?.name || owner?.email || "Unknown",
+        email: owner?.email,
+        avatar: owner?.avatar,
+      };
     }
 
     return {
       ...prompt,
       isOwner,
+      isCollaborator: !!isCollaborator,
+      ownerInfo,
     };
   },
 });
