@@ -208,3 +208,39 @@ export const getPublicPrompt = query({
     return prompt;
   },
 });
+
+// Get prompts where user is a collaborator (shared with me)
+export const getSharedPrompts = query({
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .first();
+
+    if (!user) return [];
+
+    // Get all prompts where user is in collaborators array
+    const allPrompts = await ctx.db.query("prompts").collect();
+    
+    const sharedPrompts = allPrompts.filter((prompt) => 
+      prompt.collaborators?.includes(user._id)
+    );
+
+    // Enrich with owner info
+    const enriched = await Promise.all(
+      sharedPrompts.map(async (prompt) => {
+        const owner = await ctx.db.get(prompt.userId);
+        return {
+          ...prompt,
+          ownerName: owner?.name || owner?.email || "Unknown",
+          ownerAvatar: owner?.avatar,
+        };
+      })
+    );
+
+    return enriched;
+  },
+});

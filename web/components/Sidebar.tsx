@@ -4,7 +4,7 @@ import * as React from "react";
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, ChevronLeft, ChevronRight, Search, Clock, Settings, Moon, Sun, Trash2, User, LogIn, LogOut } from "lucide-react";
+import { Home, ChevronLeft, ChevronRight, Search, Clock, Settings, Moon, Sun, Trash2, User, LogIn, LogOut, Users } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,8 @@ interface SidebarProps {
   onPromptClick: (prompt: SavedPrompt) => void;
   onDeletePrompt?: (id: string) => void;
   currentPromptId?: string;
+  sharedPrompts?: SavedPrompt[];
+  onSharedPromptClick?: (prompt: SavedPrompt) => void;
 }
 
 export function Sidebar({
@@ -41,6 +43,8 @@ export function Sidebar({
   onPromptClick,
   onDeletePrompt,
   currentPromptId,
+  sharedPrompts,
+  onSharedPromptClick,
 }: SidebarProps) {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -48,6 +52,7 @@ export function Sidebar({
   const [hoveredPromptId, setHoveredPromptId] = useState<string | null>(null);
   const { user, signOut } = useAuth();
   const isSignedIn = !!user;
+  const [activeTab, setActiveTab] = useState<"my-prompts" | "shared">("my-prompts");
 
   // Prevent hydration mismatch for theme
   React.useEffect(() => {
@@ -181,66 +186,144 @@ export function Sidebar({
                 />
               </div>
 
+              {/* Tabs */}
+              {isSignedIn && (
+                <div className="flex gap-1 mb-3 bg-muted/50 p-1 rounded-lg">
+                  <button
+                    onClick={() => setActiveTab("my-prompts")}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-md transition-all ${
+                      activeTab === "my-prompts"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <User size={14} />
+                    My Prompts
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("shared")}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-md transition-all ${
+                      activeTab === "shared"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Users size={14} />
+                    Shared
+                  </button>
+                </div>
+              )}
+
               {/* Prompts List */}
               <div className="flex-1 overflow-y-auto -mx-4 px-4">
                 <div className="space-y-2">
-                  {prompts.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
-                      No prompts yet
-                    </div>
-                  ) : (
-                    prompts.map((prompt) => (
-                      <div
-                        key={prompt.id}
-                        className={`relative group w-full text-left p-3 rounded-lg transition-all cursor-pointer ${
-                          currentPromptId === prompt.id
-                            ? "bg-primary/10 border border-primary/20"
-                            : "hover:bg-accent border border-transparent"
-                        }`}
-                        onMouseEnter={() => setHoveredPromptId(prompt.id)}
-                        onMouseLeave={() => setHoveredPromptId(null)}
-                      >
-                        <div onClick={() => onPromptClick(prompt)}>
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-medium text-sm text-foreground truncate pr-8">
-                                {prompt.placeName}
-                              </h3>
-                              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                                <Clock size={12} />
-                                <span>{formatDate(prompt.timestamp)}</span>
+                  {activeTab === "my-prompts" ? (
+                    // My Prompts Tab
+                    prompts.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        No prompts yet
+                      </div>
+                    ) : (
+                      prompts.map((prompt) => (
+                        <div
+                          key={prompt.id}
+                          className={`relative group w-full text-left p-3 rounded-lg transition-all cursor-pointer ${
+                            currentPromptId === prompt.id
+                              ? "bg-primary/10 border border-primary/20"
+                              : "hover:bg-accent border border-transparent"
+                          }`}
+                          onMouseEnter={() => setHoveredPromptId(prompt.id)}
+                          onMouseLeave={() => setHoveredPromptId(null)}
+                        >
+                          <div onClick={() => onPromptClick(prompt)}>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-medium text-sm text-foreground truncate pr-8">
+                                  {prompt.placeName}
+                                </h3>
+                                <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                                  <Clock size={12} />
+                                  <span>{formatDate(prompt.timestamp)}</span>
+                                </div>
                               </div>
                             </div>
+                            <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                              {prompt.promptPreview}
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-                            {prompt.promptPreview}
-                          </p>
+                          
+                          {/* Delete Button */}
+                          {onDeletePrompt && (
+                            <motion.button
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ 
+                                opacity: hoveredPromptId === prompt.id ? 1 : 0,
+                                scale: hoveredPromptId === prompt.id ? 1 : 0.8
+                              }}
+                              transition={{ duration: 0.15 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeletePrompt(prompt.id);
+                                if (currentPromptId === prompt.id) {
+                                  onHomeClick();
+                                }
+                              }}
+                              className="absolute top-2 right-2 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              title="Delete chat"
+                            >
+                              <Trash2 size={14} />
+                            </motion.button>
+                          )}
                         </div>
-                        
-                        {/* Delete Button */}
-                        {onDeletePrompt && (
-                          <motion.button
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ 
-                              opacity: hoveredPromptId === prompt.id ? 1 : 0,
-                              scale: hoveredPromptId === prompt.id ? 1 : 0.8
-                            }}
-                            transition={{ duration: 0.15 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeletePrompt(prompt.id);
-                              if (currentPromptId === prompt.id) {
-                                onHomeClick();
-                              }
-                            }}
-                            className="absolute top-2 right-2 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            title="Delete chat"
-                          >
-                            <Trash2 size={14} />
-                          </motion.button>
-                        )}
+                      ))
+                    )
+                  ) : (
+                    // Shared Prompts Tab
+                    !sharedPrompts || sharedPrompts.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        <Users size={32} className="mx-auto mb-2 opacity-50" />
+                        <p>No prompts shared with you</p>
+                        <p className="text-xs mt-1">When someone adds you as a collaborator, prompts will appear here</p>
                       </div>
-                    ))
+                    ) : (
+                      sharedPrompts.map((prompt) => (
+                        <div
+                          key={prompt.id}
+                          className={`relative group w-full text-left p-3 rounded-lg transition-all cursor-pointer ${
+                            currentPromptId === prompt.id
+                              ? "bg-primary/10 border border-primary/20"
+                              : "hover:bg-accent border border-transparent"
+                          }`}
+                          onMouseEnter={() => setHoveredPromptId(prompt.id)}
+                          onMouseLeave={() => setHoveredPromptId(null)}
+                        >
+                          <div onClick={() => onSharedPromptClick?.(prompt)}>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-medium text-sm text-foreground truncate pr-8">
+                                  {prompt.placeName}
+                                </h3>
+                                <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                                  <Clock size={12} />
+                                  <span>{formatDate(prompt.timestamp)}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                              {prompt.promptPreview}
+                            </p>
+                            {/* Owner info for shared prompts */}
+                            {('ownerName' in prompt) && (
+                              <div className="mt-2 pt-2 border-t border-border/50">
+                                <span className="text-xs text-muted-foreground">
+                                  Shared by: <span className="text-foreground">{(prompt as any).ownerName}</span>
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )
                   )}
                 </div>
               </div>

@@ -48,7 +48,7 @@ const saveToStorage = (prompts: SavedPrompt[]) => {
 };
 
 // Convert Convex prompt to SavedPrompt format
-const convertConvexPrompt = (prompt: any): SavedPrompt => ({
+export const convertConvexPrompt = (prompt: any): SavedPrompt => ({
   id: prompt._id,
   placeName: prompt.placeName,
   url: prompt.url,

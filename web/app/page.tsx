@@ -8,7 +8,7 @@ import { OutputView } from "@/components/OutputView";
 import { GenerateAnimation } from "@/components/GenerateAnimation";
 import { usePromptGeneration } from "@/hooks/usePromptGeneration";
 import { useSectionManagement } from "@/hooks/useSectionManagement";
-import { usePromptHistory } from "@/hooks/usePromptHistory";
+import { usePromptHistory, convertConvexPrompt } from "@/hooks/usePromptHistory";
 import { SavedPrompt } from "@/hooks/usePromptHistory";
 import { PromptMigration } from "@/components/auth/PromptMigration";
 import { motion, AnimatePresence } from "framer-motion";
@@ -88,6 +88,12 @@ export default function Home() {
   // Fetch current user info for role
   const currentUser = useQuery(
     api.users.getCurrentUser,
+    user ? {} : "skip"
+  );
+
+  // Fetch shared prompts (where user is a collaborator)
+  const sharedPrompts = useQuery(
+    api.prompts.getSharedPrompts,
     user ? {} : "skip"
   );
 
@@ -176,6 +182,16 @@ export default function Home() {
     setShowOutput(true);
   }, [setSections]);
 
+  // Handle shared prompt selection from sidebar
+  const handleSharedPromptClick = useCallback((prompt: any) => {
+    // Load the shared prompt data into state
+    setGoogleMapsUrl(prompt.url);
+    setCurrentPromptId(prompt._id);
+    setSections(prompt.sections);
+    setView("output");
+    setShowOutput(true);
+  }, [setSections]);
+
   // Handle regenerate section
   const handleRegenerateSection = useCallback(
     async (header: string, customPrompt: string) => {
@@ -228,6 +244,8 @@ export default function Home() {
         onPromptClick={handlePromptClick}
         onDeletePrompt={deletePrompt}
         currentPromptId={currentPromptId}
+        sharedPrompts={(sharedPrompts || []).map(convertConvexPrompt)}
+        onSharedPromptClick={handleSharedPromptClick}
       />
 
       {/* Main Content Area */}
