@@ -90,6 +90,14 @@ export function SectionCard({
     }
   };
 
+  // Auto-resize textarea to fit content
+  React.useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [editedContent, isEditing]);
+
   return (
     <div
       className={cn(
@@ -199,7 +207,7 @@ export function SectionCard({
           onChange={handleContentChange}
           onBlur={handleContentBlur}
           onKeyDown={handleKeyDown}
-          className="w-full min-h-[80px] p-2 font-mono text-sm bg-background border-2 border-primary rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-primary/20"
+          className="w-full p-2 font-mono text-sm bg-background border-2 border-primary rounded-md resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
       ) : (
         <div 
