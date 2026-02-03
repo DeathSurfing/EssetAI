@@ -18,6 +18,7 @@ import {
 } from "@/components/ai-elements/message";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { SectionCard } from "./SectionCard";
+import { NotionSectionEditor } from "./NotionSectionEditor";
 import { OpenInButtons } from "./OpenInButtons";
 import { CopyIcon, CheckIcon } from "lucide-react";
 
@@ -33,18 +34,22 @@ interface StreamingPromptOutputProps {
   text: string;
   isLoading?: boolean;
   sections: Section[];
+  promptId?: string;
   onRegenerateSection: (header: string, customPrompt: string) => void;
   onUndoSection: (header: string) => void;
   onEditSection: (header: string, newContent: string) => void;
+  onSyncSections?: (sections: Section[]) => void;
 }
 
 export function StreamingPromptOutput({
   text,
   isLoading,
   sections,
+  promptId,
   onRegenerateSection,
   onUndoSection,
   onEditSection,
+  onSyncSections,
 }: StreamingPromptOutputProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const buttonsRef = useRef<HTMLDivElement>(null);
@@ -189,20 +194,32 @@ export function StreamingPromptOutput({
                           damping: 15,
                         }}
                       >
-                        <SectionCard
-                          header={section.header}
-                          content={section.content}
-                          index={index}
-                          isRegenerating={section.isRegenerating}
-                          isDirty={section.isDirty}
-                          previousContent={section.previousContent}
-                          onRegenerate={onRegenerateSection}
-                          onUndo={onUndoSection}
-                          onEdit={onEditSection}
-                          allSections={sections.map(
-                            (s) => `${s.header}\n${s.content}`
-                          )}
-                        />
+                        {promptId ? (
+                          <NotionSectionEditor
+                            sectionIndex={index}
+                            header={section.header}
+                            content={section.content}
+                            promptId={promptId}
+                            onContentChange={(newContent) => {
+                              onEditSection(section.header, newContent);
+                            }}
+                          />
+                        ) : (
+                          <SectionCard
+                            header={section.header}
+                            content={section.content}
+                            index={index}
+                            isRegenerating={section.isRegenerating}
+                            isDirty={section.isDirty}
+                            previousContent={section.previousContent}
+                            onRegenerate={onRegenerateSection}
+                            onUndo={onUndoSection}
+                            onEdit={onEditSection}
+                            allSections={sections.map(
+                              (s) => `${s.header}\n${s.content}`
+                            )}
+                          />
+                        )}
                       </motion.div>
                     ))}
                   </div>

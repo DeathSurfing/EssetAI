@@ -316,3 +316,169 @@ export const getEditHistory = query({
     return enrichedEdits;
   },
 });
+
+// Section locking for Notion-style editing
+const LOCK_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+export const lockSection = mutation({
+  args: {
+    promptId: v.id("prompts"),
+    sectionIndex: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    const prompt = await ctx.db.get(args.promptId);
+    if (!prompt) throw new Error("Prompt not found");
+
+    // Check permissions
+    const isOwner = prompt.userId === user._id;
+    const isCollaborator = prompt.collaborators?.includes(user._id);
+    const canEdit = isOwner || isCollaborator || (prompt.isPublic && prompt.shareMode === "edit");
+
+    if (!canEdit) throw new Error("Edit permission denied");
+
+    const now = Date.now();
+
+    // Check if already locked by someone else
+    const existingLock = await ctx.db
+      .query("sectionLocks")
+      .withIndex("by_promptId_section", (q) =>
+        q.eq("promptId", args.promptId).eq("sectionIndex", args.sectionIndex)
+      )
+      .first();
+
+    if (existingLock) {
+      // If locked by current user, just update timestamp
+      if (existingLock.userId === user._id) {
+        await ctx.db.patch(existingLock._id, {
+          lockedAt: now,
+          expiresAt: now + LOCK_TIMEOUT,
+        });
+        return { success: true, locked: true };
+      }
+
+      // Check if lock expired
+      if (now > existingLock.expiresAt) {
+        // Delete expired lock
+        await ctx.db.delete(existingLock._id);
+      } else {
+        throw new Error("Section is locked by another user");
+      }
+    }
+
+    // Create new lock
+    await ctx.db.insert("sectionLocks", {
+      promptId: args.promptId,
+      sectionIndex: args.sectionIndex,
+      userId: user._id,
+      lockedAt: now,
+      expiresAt: now + LOCK_TIMEOUT,
+    });
+
+    return { success: true, locked: true };
+  },
+});
+
+export const unlockSection = mutation({
+  args: {
+    promptId: v.id("prompts"),
+    sectionIndex: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return { success: false };
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .first();
+
+    if (!user) return { success: false };
+
+    // Find and delete lock
+    const lock = await ctx.db
+      .query("sectionLocks")
+      .withIndex("by_promptId_section", (q) =>
+        q.eq("promptId", args.promptId).eq("sectionIndex", args.sectionIndex)
+      )
+      .first();
+
+    if (lock && lock.userId === user._id) {
+      await ctx.db.delete(lock._id);
+    }
+
+    return { success: true };
+  },
+});
+
+export const getActiveEditors = query({
+  args: {
+    promptId: v.id("prompts"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .first();
+
+    if (!user) return [];
+
+    const now = Date.now();
+
+    // Get all active locks for this prompt
+    const locks = await ctx.db
+      .query("sectionLocks")
+      .withIndex("by_promptId", (q) => q.eq("promptId", args.promptId))
+      .collect();
+
+    // Filter expired locks
+    const activeLocks = locks.filter((lock) => lock.expiresAt > now);
+
+    // Enrich with user info
+    const editors = await Promise.all(
+      activeLocks.map(async (lock) => {
+        const editorUser = await ctx.db.get(lock.userId);
+        return {
+          userId: lock.userId,
+          userName: editorUser?.name || editorUser?.email || "Unknown",
+          userAvatar: editorUser?.avatar,
+          sectionIndex: lock.sectionIndex,
+          lockedAt: lock.lockedAt,
+          isOtherUser: lock.userId !== user._id,
+        };
+      })
+    );
+
+    return editors;
+  },
+});
+
+// Clean up expired locks periodically (can be called by a scheduled job)
+export const cleanupExpiredLocks = mutation({
+  handler: async (ctx) => {
+    const now = Date.now();
+
+    const expiredLocks = await ctx.db
+      .query("sectionLocks")
+      .collect()
+      .then((locks) => locks.filter((lock) => lock.expiresAt <= now));
+
+    for (const lock of expiredLocks) {
+      await ctx.db.delete(lock._id);
+    }
+
+    return { cleaned: expiredLocks.length };
+  },
+});

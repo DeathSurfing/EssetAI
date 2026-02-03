@@ -83,6 +83,18 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_promptId_userId", ["promptId", "userId"]),
 
+  // Section locks for Notion-style editing
+  sectionLocks: defineTable({
+    promptId: v.id("prompts"),
+    sectionIndex: v.number(),
+    userId: v.id("users"),
+    lockedAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_promptId", ["promptId"])
+    .index("by_promptId_section", ["promptId", "sectionIndex"])
+    .index("by_userId", ["userId"]),
+
   // Collaborative edits - tracks changes made by users
   collaborativeEdits: defineTable({
     promptId: v.id("prompts"),
