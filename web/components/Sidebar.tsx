@@ -30,6 +30,7 @@ interface SidebarProps {
   currentPromptId?: string;
   sharedPrompts?: SavedPrompt[];
   onSharedPromptClick?: (prompt: SavedPrompt) => void;
+  isLoading?: boolean;
 }
 
 export function Sidebar({
@@ -44,6 +45,7 @@ export function Sidebar({
   currentPromptId,
   sharedPrompts,
   onSharedPromptClick,
+  isLoading = false,
 }: SidebarProps) {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -218,7 +220,11 @@ export function Sidebar({
                 <div className="space-y-2">
                   {activeTab === "my-prompts" ? (
                     // My Prompts Tab
-                    prompts.length === 0 ? (
+                    isLoading ? (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        <div className="animate-pulse">Loading prompts...</div>
+                      </div>
+                    ) : prompts.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground text-sm">
                         No prompts yet
                       </div>
