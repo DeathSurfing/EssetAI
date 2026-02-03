@@ -1,21 +1,34 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Playfair_Display, Inter, JetBrains_Mono } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Editorial display font for headings
+const playfair = Playfair_Display({
+  variable: "--font-display",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Clean geometric sans for body text
+const inter = Inter({
+  variable: "--font-body",
   subsets: ["latin"],
+  display: "swap",
+});
+
+// Professional monospace for code/prompts
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Website Prompt Generator",
-  description: "Transform Google Maps business links into structured AI website prompts",
+  title: "Prompt Studio | AI Website Prompt Generator",
+  description: "Transform Google Maps business links into structured, production-ready AI website prompts for Framer, Lovable, and Replit.",
+  keywords: ["AI prompts", "website generator", "Framer", "Lovable", "Google Maps"],
 };
 
 export default function RootLayout({
@@ -24,12 +37,29 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta name="color-scheme" content="light dark" />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${playfair.variable} ${inter.variable} ${jetbrainsMono.variable} font-body antialiased`}
       >
-        {children}
-        <Toaster position="bottom-right" />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange={false}
+        >
+          {children}
+          <Toaster 
+            position="bottom-right" 
+            toastOptions={{
+              style: {
+                fontFamily: "var(--font-body)",
+              },
+            }}
+          />
+        </ThemeProvider>
       </body>
     </html>
   );
