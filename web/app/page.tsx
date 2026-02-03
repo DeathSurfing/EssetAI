@@ -5,6 +5,7 @@ import { useState, useCallback } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { InputView } from "@/components/InputView";
 import { OutputView } from "@/components/OutputView";
+import { GenerateAnimation } from "@/components/GenerateAnimation";
 import { usePromptGeneration } from "@/hooks/usePromptGeneration";
 import { useSectionManagement } from "@/hooks/useSectionManagement";
 import { usePromptHistory } from "@/hooks/usePromptHistory";
@@ -12,6 +13,18 @@ import { SavedPrompt } from "@/hooks/usePromptHistory";
 import { motion, AnimatePresence } from "framer-motion";
 
 type ViewState = "input" | "output";
+
+// Section headers for animation
+const SECTION_HEADERS = [
+  "PROJECT CONTEXT",
+  "BUSINESS OVERVIEW",
+  "TARGET AUDIENCE",
+  "DESIGN DIRECTION",
+  "SITE STRUCTURE",
+  "CONTENT GUIDELINES",
+  "PRIMARY CALL-TO-ACTION",
+  "LOCATION CONTEXT",
+];
 
 export default function Home() {
   // Sidebar state
@@ -21,6 +34,10 @@ export default function Home() {
   // View state
   const [view, setView] = useState<ViewState>("input");
   const [currentPromptId, setCurrentPromptId] = useState<string | undefined>();
+
+  // Animation state
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showOutput, setShowOutput] = useState(false);
 
   // Input state
   const [googleMapsUrl, setGoogleMapsUrl] = useState("");
@@ -50,42 +67,45 @@ export default function Home() {
     ? searchPrompts(searchQuery)
     : prompts;
 
-  // Handle generate
+  // Handle generate with animation
   const handleGenerate = useCallback(async () => {
     if (!googleMapsUrl.trim()) return;
 
+    // Start animation
+    setIsGenerating(true);
+    setShowOutput(false);
+
+    // Start the actual generation
     await generatePrompt(googleMapsUrl);
+
+    // Animation will handle the transition
+  }, [googleMapsUrl, generatePrompt]);
+
+  // Handle animation complete
+  const handleAnimationComplete = useCallback(() => {
+    setIsGenerating(false);
+    setShowOutput(true);
     setView("output");
 
-    // Save to history after successful generation
-    // This will be called after the stream completes
-    setTimeout(() => {
-      if (businessContext && (generatedPrompt || streamingText)) {
-        addPrompt({
-          placeName: businessContext.name,
-          url: googleMapsUrl,
-          promptPreview:
-            (generatedPrompt || streamingText).slice(0, 150) + "...",
-          fullPrompt: generatedPrompt || streamingText,
-          sections: sections,
-        });
-      }
-    }, 1000);
-  }, [
-    googleMapsUrl,
-    generatePrompt,
-    businessContext,
-    generatedPrompt,
-    streamingText,
-    sections,
-    addPrompt,
-  ]);
+    // Save to history after animation completes
+    if (businessContext) {
+      addPrompt({
+        placeName: businessContext.name,
+        url: googleMapsUrl,
+        promptPreview: (generatedPrompt || streamingText).slice(0, 150) + "...",
+        fullPrompt: generatedPrompt || streamingText,
+        sections: sections,
+      });
+    }
+  }, [businessContext, googleMapsUrl, generatedPrompt, streamingText, sections, addPrompt]);
 
   // Handle home click
   const handleHomeClick = useCallback(() => {
     setView("input");
     setGoogleMapsUrl("");
     setCurrentPromptId(undefined);
+    setShowOutput(false);
+    setIsGenerating(false);
   }, []);
 
   // Handle prompt selection from sidebar
@@ -93,6 +113,7 @@ export default function Home() {
     setGoogleMapsUrl(prompt.url);
     setCurrentPromptId(prompt.id);
     setView("output");
+    setShowOutput(true);
   }, []);
 
   // Handle regenerate section
@@ -125,6 +146,14 @@ export default function Home() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
+      {/* Animation Overlay */}
+      <GenerateAnimation
+        isAnimating={isGenerating}
+        businessName={businessContext?.name || "Business"}
+        onAnimationComplete={handleAnimationComplete}
+        sections={SECTION_HEADERS}
+      />
+
       {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
@@ -140,12 +169,16 @@ export default function Home() {
       {/* Main Content Area */}
       <main className="flex-1 relative overflow-hidden">
         <AnimatePresence mode="wait">
-          {view === "input" ? (
+          {view === "input" && !showOutput ? (
             <motion.div
               key="input"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              exit={{ 
+                opacity: 0, 
+                scale: 0.9,
+                transition: { duration: 0.3 }
+              }}
               transition={{ duration: 0.3 }}
               className="h-full w-full"
             >
@@ -153,23 +186,28 @@ export default function Home() {
                 googleMapsUrl={googleMapsUrl}
                 onUrlChange={setGoogleMapsUrl}
                 onGenerate={handleGenerate}
-                isLoading={isLoading}
+                isLoading={isGenerating}
               />
             </motion.div>
           ) : (
             <motion.div
               key="output"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
+              transition={{ 
+                duration: 0.5,
+                type: "spring",
+                stiffness: 100,
+                damping: 20,
+              }}
               className="h-full w-full"
             >
               <OutputView
                 googleMapsUrl={googleMapsUrl}
                 onUrlChange={setGoogleMapsUrl}
                 text={streamingText || generatedPrompt}
-                isLoading={isLoading}
+                isLoading={isLoading && !isGenerating}
                 sections={sections}
                 qualityScore={qualityScore}
                 onRegenerateSection={handleRegenerateSection}
@@ -183,7 +221,7 @@ export default function Home() {
         </AnimatePresence>
 
         {/* Error Display */}
-        {error && (
+        {error && !isGenerating && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}

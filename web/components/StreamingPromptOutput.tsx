@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { motion } from "framer-motion";
 import gsap from "gsap";
 import { Card } from "@/components/ui/card";
 import {
@@ -176,21 +177,33 @@ export function StreamingPromptOutput({
                 ) : (
                   <div className="space-y-4">
                     {sections.map((section, index) => (
-                      <SectionCard
+                      <motion.div
                         key={index}
-                        header={section.header}
-                        content={section.content}
-                        index={index}
-                        isRegenerating={section.isRegenerating}
-                        isDirty={section.isDirty}
-                        previousContent={section.previousContent}
-                        onRegenerate={onRegenerateSection}
-                        onUndo={onUndoSection}
-                        onEdit={onEditSection}
-                        allSections={sections.map(
-                          (s) => `${s.header}\n${s.content}`
-                        )}
-                      />
+                        initial={{ opacity: 0, x: -50, scale: 0.8 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        transition={{
+                          duration: 0.5,
+                          delay: index * 0.1,
+                          type: "spring",
+                          stiffness: 100,
+                          damping: 15,
+                        }}
+                      >
+                        <SectionCard
+                          header={section.header}
+                          content={section.content}
+                          index={index}
+                          isRegenerating={section.isRegenerating}
+                          isDirty={section.isDirty}
+                          previousContent={section.previousContent}
+                          onRegenerate={onRegenerateSection}
+                          onUndo={onUndoSection}
+                          onEdit={onEditSection}
+                          allSections={sections.map(
+                            (s) => `${s.header}\n${s.content}`
+                          )}
+                        />
+                      </motion.div>
                     ))}
                   </div>
                 )}
