@@ -67,9 +67,11 @@ export function Sidebar({
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-foreground">
-                  Prompt History
-                </h2>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                    esset.ai
+                  </span>
+                </div>
               </div>
 
               {/* Home Button */}

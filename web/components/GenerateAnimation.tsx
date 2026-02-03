@@ -135,7 +135,7 @@ export function GenerateAnimation({
                 >
                   <Sparkles size={24} />
                 </motion.span>
-                Generating prompt for {businessName}...
+                esset.ai is crafting {businessName}...
               </div>
             </motion.div>
           </motion.div>

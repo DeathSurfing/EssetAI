@@ -33,14 +33,14 @@ export function InputView({
         className="w-full max-w-3xl space-y-8"
       >
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Website Prompt Generator
-          </h1>
-          <p className="text-muted-foreground">
-            Enter a Google Maps business URL to generate a complete website brief
-          </p>
-        </div>
+          <div className="text-center space-y-2">
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent tracking-tight">
+              esset.ai
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Transform locations into stunning websites with AI
+            </p>
+          </div>
 
         {/* Input Section */}
         <div className="space-y-4">

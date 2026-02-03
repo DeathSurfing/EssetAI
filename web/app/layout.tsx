@@ -26,9 +26,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Prompt Studio | AI Website Prompt Generator",
-  description: "Transform Google Maps business links into structured, production-ready AI website prompts for Framer, Lovable, and Replit.",
-  keywords: ["AI prompts", "website generator", "Framer", "Lovable", "Google Maps"],
+  title: "esset.ai | AI Website Builder",
+  description: "Transform Google Maps business links into stunning websites with AI. Generate production-ready website prompts and designs instantly.",
+  keywords: ["AI website builder", "esset", "website generator", "Google Maps", "AI prompts"],
 };
 
 export default function RootLayout({
