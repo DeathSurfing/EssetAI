@@ -168,9 +168,11 @@ export function OutputView({
                 text={text}
                 isLoading={isLoading}
                 sections={sections}
+                promptId={promptId}
                 onRegenerateSection={onRegenerateSection}
                 onUndoSection={onUndoSection}
                 onEditSection={onEditSection}
+                onSyncSections={onSyncSections}
               />
 
               {/* Quality Score */}

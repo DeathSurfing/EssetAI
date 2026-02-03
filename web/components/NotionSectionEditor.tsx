@@ -88,14 +88,16 @@ export function NotionSectionEditor({
     }
 
     try {
-      await lockSection({
+      console.log(`[NotionSectionEditor] Attempting to lock section ${sectionIndex} for prompt ${promptId}`);
+      const result = await lockSection({
         promptId: promptId as Id<"prompts">,
         sectionIndex,
       });
+      console.log(`[NotionSectionEditor] Successfully locked section:`, result);
       setIsEditing(true);
       setLocalContent(content);
     } catch (error) {
-      console.error("Failed to lock section:", error);
+      console.error("[NotionSectionEditor] Failed to lock section:", error);
       toast.error("Could not start editing. Please try again.");
     }
   }, [lockedByOther, promptId, sectionIndex, content, lockSection]);

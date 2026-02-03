@@ -305,9 +305,11 @@ export function CollaborativeEditor({
 
     const join = async () => {
       try {
-        await joinSession({ promptId: promptId as Id<"prompts"> });
+        console.log("[CollaborativeEditor] Joining session for prompt:", promptId);
+        const result = await joinSession({ promptId: promptId as Id<"prompts"> });
+        console.log("[CollaborativeEditor] Successfully joined session:", result);
       } catch (error) {
-        console.error("Failed to join collaborative session:", error);
+        console.error("[CollaborativeEditor] Failed to join collaborative session:", error);
       }
     };
 
