@@ -10,27 +10,105 @@ import { StreamingPromptOutput as PromptOutput } from "@/components/StreamingPro
 import { PromptQualityScoreDisplay } from "@/components/PromptQualityScore";
 import { Button } from "@/components/ui/button";
 import { calculateQualityScore, PromptQualityScore } from "@/lib/prompt-quality";
+import { parseGoogleMapsUrl } from "@/lib/location-parser";
 
 type BuilderType = "lovable" | "framer" | "webflow";
+
+type SectionState = {
+  header: string;
+  content: string;
+  previousContent: string | null;
+  isRegenerating: boolean;
+};
+
+const SECTION_HEADERS = [
+  "PROJECT CONTEXT",
+  "BUSINESS OVERVIEW",
+  "TARGET AUDIENCE",
+  "DESIGN DIRECTION",
+  "SITE STRUCTURE",
+  "CONTENT GUIDELINES",
+  "PRIMARY CALL-TO-ACTION",
+  "LOCATION CONTEXT",
+];
+
+function parseSections(text: string): SectionState[] {
+  if (!text.trim()) return [];
+  
+  const sections: SectionState[] = [];
+  let currentContent = "";
+  let currentHeader: string | null = null;
+  
+  const lines = text.split("\n");
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    const isHeader = SECTION_HEADERS.some(
+      (header) => trimmedLine === header || trimmedLine.startsWith(header)
+    );
+    
+    if (isHeader) {
+      if (currentHeader || currentContent) {
+        sections.push({
+          header: currentHeader || "",
+          content: currentContent.trim(),
+          previousContent: null,
+          isRegenerating: false,
+        });
+      }
+      currentHeader = trimmedLine.replace(/:$/, "");
+      currentContent = "";
+    } else {
+      currentContent += line + "\n";
+    }
+  }
+  
+  if (currentHeader || currentContent.trim()) {
+    sections.push({
+      header: currentHeader || "",
+      content: currentContent.trim(),
+      previousContent: null,
+      isRegenerating: false,
+    });
+  }
+  
+  return sections;
+}
+
+function assemblePrompt(sections: SectionState[]): string {
+  return sections
+    .filter(s => s.header)
+    .map(s => `${s.header}\n${s.content}`)
+    .join("\n\n");
+}
 
 export default function Home() {
   const [googleMapsUrl, setGoogleMapsUrl] = useState("");
   const [builder, setBuilder] = useState<BuilderType>("lovable");
-  const [generatedPrompt, setGeneratedPrompt] = useState("");
+  const [sections, setSections] = useState<SectionState[]>([]);
   const [qualityScore, setQualityScore] = useState<PromptQualityScore | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [businessContext, setBusinessContext] = useState<{ name: string; location: string } | null>(null);
+  
+  const generatedPrompt = assemblePrompt(sections);
   
   const handleSubmit = async () => {
     if (!googleMapsUrl.trim()) return;
     
     setIsLoading(true);
     setError(null);
-    setGeneratedPrompt("");
+    setSections([]);
     setQualityScore(null);
     
     try {
       console.log("Submitting URL:", googleMapsUrl);
+      
+      const location = parseGoogleMapsUrl(googleMapsUrl);
+      setBusinessContext({
+        name: location.businessName || "Local Business",
+        location: location.locality || location.city || location.area || "Unknown location",
+      });
       
       const response = await fetch("/api/generate", {
         method: "POST",
@@ -50,7 +128,8 @@ export default function Home() {
       console.log("Received response:", data);
       
       if (data.prompt) {
-        setGeneratedPrompt(data.prompt);
+        const parsedSections = parseSections(data.prompt);
+        setSections(parsedSections);
         const score = calculateQualityScore(data.prompt);
         setQualityScore(score);
       } else {
@@ -62,6 +141,83 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  const handleRegenerateSection = async (header: string, customPrompt: string) => {
+    if (!businessContext) return;
+    
+    const sectionIndex = sections.findIndex(s => s.header === header);
+    if (sectionIndex === -1) return;
+    
+    // Mark section as regenerating
+    setSections(prev => prev.map((s, i) => 
+      i === sectionIndex ? { ...s, isRegenerating: true } : s
+    ));
+    
+    try {
+      const section = sections[sectionIndex];
+      
+      const response = await fetch("/api/regenerate-section", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sectionName: header,
+          sectionContent: section.content,
+          allSections: sections.map(s => ({ header: s.header, content: s.content })),
+          customInstructions: customPrompt,
+          businessContext,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to regenerate section");
+      }
+      
+      const data = await response.json();
+      
+      if (data.section) {
+        setSections(prev => prev.map((s, i) => 
+          i === sectionIndex 
+            ? { ...s, content: data.section, previousContent: s.content, isRegenerating: false }
+            : s
+        ));
+        
+        // Recalculate quality score with new prompt
+        const newPrompt = assemblePrompt(sections.map((s, i) => 
+          i === sectionIndex ? { ...s, content: data.section } : s
+        ));
+        const score = calculateQualityScore(newPrompt);
+        setQualityScore(score);
+      }
+    } catch (err) {
+      console.error("Regenerate error:", err);
+      setError(err instanceof Error ? err.message : "Failed to regenerate section");
+      setSections(prev => prev.map((s, i) => 
+        i === sectionIndex ? { ...s, isRegenerating: false } : s
+      ));
+    }
+  };
+  
+  const handleUndoSection = (header: string) => {
+    const sectionIndex = sections.findIndex(s => s.header === header);
+    if (sectionIndex === -1) return;
+    
+    const section = sections[sectionIndex];
+    if (!section.previousContent) return;
+    
+    setSections(prev => prev.map((s, i) => 
+      i === sectionIndex 
+        ? { ...s, content: s.previousContent!, previousContent: null }
+        : s
+    ));
+    
+    // Recalculate quality score
+    const newPrompt = assemblePrompt(sections.map((s, i) => 
+      i === sectionIndex ? { ...s, content: s.previousContent! } : s
+    ));
+    const score = calculateQualityScore(newPrompt);
+    setQualityScore(score);
   };
   
   const builderLabels: Record<BuilderType, string> = {
@@ -122,7 +278,13 @@ export default function Home() {
             </div>
           )}
           
-          <PromptOutput text={generatedPrompt} />
+          <PromptOutput 
+            text={generatedPrompt}
+            isLoading={isLoading}
+            sections={sections}
+            onRegenerateSection={handleRegenerateSection}
+            onUndoSection={handleUndoSection}
+          />
           
           {qualityScore && <PromptQualityScoreDisplay score={qualityScore} />}
         </div>
