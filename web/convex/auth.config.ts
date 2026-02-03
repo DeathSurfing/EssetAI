@@ -1,7 +1,10 @@
-// HARDCODED: This file is evaluated at build time by Convex
-// process.env is NOT available here - you must hardcode the values
-// Get your Client ID from: https://dashboard.workos.com
-const WORKOS_CLIENT_ID = "client_01KGHY0A6MHMDET7Z1NS3CKV3M";
+// Convex Auth Configuration
+// Uses WORKOS_CLIENT_ID from Convex environment variables
+const WORKOS_CLIENT_ID = process.env.WORKOS_CLIENT_ID;
+
+if (!WORKOS_CLIENT_ID) {
+  throw new Error("WORKOS_CLIENT_ID environment variable is required");
+}
 
 const authConfig = {
   providers: [
