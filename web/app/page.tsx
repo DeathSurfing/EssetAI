@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { InputView } from "@/components/InputView";
 import { OutputView } from "@/components/OutputView";
@@ -16,6 +17,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { SectionState } from "@/lib/prompt-parser";
+import { Id } from "@/convex/_generated/dataModel";
 
 type ViewState = "input" | "output";
 
@@ -98,6 +100,39 @@ export default function Home() {
     api.prompts.getSharedPrompts,
     user ? {} : "skip"
   );
+
+  // Handle URL query parameter ?prompt= for invite redirects
+  const searchParams = useSearchParams();
+  const [isLoadingFromUrl, setIsLoadingFromUrl] = useState(false);
+
+  // Query to fetch a single prompt by ID (for URL loading)
+  const urlPromptId = searchParams.get("prompt");
+  const promptFromUrl = useQuery(
+    api.prompts.getPrompt,
+    urlPromptId ? { id: urlPromptId as Id<"prompts"> } : "skip"
+  );
+
+  // Load prompt from URL query parameter
+  useEffect(() => {
+    if (urlPromptId && promptFromUrl && !isLoadingFromUrl) {
+      setIsLoadingFromUrl(true);
+      
+      // Convert to SavedPrompt format and load
+      const savedPrompt = convertConvexPrompt(promptFromUrl);
+      
+      setGoogleMapsUrl(savedPrompt.url);
+      setCurrentPromptId(savedPrompt.id);
+      setSections(savedPrompt.sections);
+      setView("output");
+      setShowOutput(true);
+      
+      // Clear the URL parameter without reloading
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, "", newUrl);
+      
+      setIsLoadingFromUrl(false);
+    }
+  }, [urlPromptId, promptFromUrl, isLoadingFromUrl]);
 
   // Filtered prompts based on search
   const filteredPrompts = searchQuery
@@ -185,10 +220,10 @@ export default function Home() {
   }, [setSections]);
 
   // Handle shared prompt selection from sidebar
-  const handleSharedPromptClick = useCallback((prompt: any) => {
+  const handleSharedPromptClick = useCallback((prompt: SavedPrompt) => {
     // Load the shared prompt data into state
     setGoogleMapsUrl(prompt.url);
-    setCurrentPromptId(prompt._id);
+    setCurrentPromptId(prompt.id);
     setSections(prompt.sections);
     setView("output");
     setShowOutput(true);
