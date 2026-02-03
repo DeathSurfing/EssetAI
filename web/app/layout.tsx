@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Playfair_Display, Inter, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
+import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import "./globals.css";
 
 // Editorial display font for headings
@@ -44,22 +45,24 @@ export default function RootLayout({
       <body
         className={`${playfair.variable} ${inter.variable} ${jetbrainsMono.variable} font-body antialiased`}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange={false}
-        >
-          {children}
-          <Toaster 
-            position="bottom-right" 
-            toastOptions={{
-              style: {
-                fontFamily: "var(--font-body)",
-              },
-            }}
-          />
-        </ThemeProvider>
+        <ConvexClientProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem
+            disableTransitionOnChange={false}
+          >
+            {children}
+            <Toaster 
+              position="bottom-right" 
+              toastOptions={{
+                style: {
+                  fontFamily: "var(--font-body)",
+                },
+              }}
+            />
+          </ThemeProvider>
+        </ConvexClientProvider>
       </body>
     </html>
   );

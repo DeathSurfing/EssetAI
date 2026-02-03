@@ -10,6 +10,7 @@ import { usePromptGeneration } from "@/hooks/usePromptGeneration";
 import { useSectionManagement } from "@/hooks/useSectionManagement";
 import { usePromptHistory } from "@/hooks/usePromptHistory";
 import { SavedPrompt } from "@/hooks/usePromptHistory";
+import { PromptMigration } from "@/components/auth/PromptMigration";
 import { motion, AnimatePresence } from "framer-motion";
 
 type ViewState = "input" | "output";
@@ -176,6 +177,9 @@ export default function Home() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
+      {/* Prompt Migration - Auto-migrates localStorage to Convex on login */}
+      <PromptMigration />
+
       {/* Animation Overlay */}
       <GenerateAnimation
         isAnimating={isGenerating}

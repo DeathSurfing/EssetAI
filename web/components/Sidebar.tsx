@@ -2,9 +2,11 @@
 
 import * as React from "react";
 import { useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Home, ChevronLeft, ChevronRight, Search, Clock, Settings, Moon, Sun, Trash2, User, LogIn, LogOut } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,6 +17,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Logo } from "@/components/Logo";
 import { SavedPrompt } from "@/hooks/usePromptHistory";
+import { QuotaDisplay } from "./auth/QuotaDisplay";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -43,8 +46,8 @@ export function Sidebar({
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [hoveredPromptId, setHoveredPromptId] = useState<string | null>(null);
-  const [isSignedIn, setIsSignedIn] = useState(false);
-  const [userName, setUserName] = useState("John Doe");
+  const { user, signOut } = useAuth();
+  const isSignedIn = !!user;
 
   // Prevent hydration mismatch for theme
   React.useEffect(() => {
@@ -62,6 +65,20 @@ export function Sidebar({
   };
 
   const isDark = theme === "dark";
+
+  const userDisplayName = user?.firstName && user?.lastName 
+    ? `${user.firstName} ${user.lastName}`
+    : user?.firstName 
+    ? user.firstName 
+    : user?.email?.split('@')[0] 
+    || "User";
+
+  const userInitials = userDisplayName
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
     <>
@@ -230,6 +247,12 @@ export function Sidebar({
 
               {/* User Profile Section */}
               <div className="mt-4 pt-4 border-t border-border">
+                {isSignedIn && (
+                  <div className="mb-3">
+                    <QuotaDisplay />
+                  </div>
+                )}
+                
                 <Popover>
                   <PopoverTrigger asChild>
                     <motion.button
@@ -238,15 +261,15 @@ export function Sidebar({
                       whileTap={{ scale: 0.98 }}
                     >
                       <Avatar size="sm" className="shrink-0">
-                        <AvatarImage src="" />
+                        <AvatarImage src={user?.profilePictureUrl || ""} />
                         <AvatarFallback className="bg-primary/10 text-primary">
-                          {isSignedIn ? userName.split(' ').map(n => n[0]).join('').toUpperCase() : <User size={16} />}
+                          {isSignedIn ? userInitials : <User size={16} />}
                         </AvatarFallback>
                       </Avatar>
                       
                       <div className="flex-1 text-left min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">
-                          {isSignedIn ? userName : "Not signed in"}
+                          {isSignedIn ? userDisplayName : "Not signed in"}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {isSignedIn ? "Account" : "Sign in to sync"}
@@ -262,14 +285,14 @@ export function Sidebar({
                         <>
                           <div className="flex items-center gap-3 pb-3 border-b">
                             <Avatar>
-                              <AvatarImage src="" />
+                              <AvatarImage src={user?.profilePictureUrl || ""} />
                               <AvatarFallback className="bg-primary/10 text-primary">
-                                {userName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                {userInitials}
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="font-medium text-sm">{userName}</p>
-                              <p className="text-xs text-muted-foreground">user@example.com</p>
+                              <p className="font-medium text-sm">{userDisplayName}</p>
+                              <p className="text-xs text-muted-foreground">{user?.email || ""}</p>
                             </div>
                           </div>
                           
@@ -281,7 +304,7 @@ export function Sidebar({
                             <Button 
                               variant="ghost" 
                               className="w-full justify-start gap-2 text-sm h-9 text-destructive hover:text-destructive"
-                              onClick={() => setIsSignedIn(false)}
+                              onClick={() => signOut()}
                             >
                               <LogOut size={16} />
                               Sign Out
@@ -299,18 +322,21 @@ export function Sidebar({
                           </div>
                           
                           <div className="space-y-2">
-                            <Button 
-                              variant="default" 
-                              className="w-full gap-2 h-9"
-                              onClick={() => setIsSignedIn(true)}
-                            >
-                              <LogIn size={16} />
-                              Sign In
-                            </Button>
-                            <Button variant="outline" className="w-full gap-2 h-9">
-                              <User size={16} />
-                              Sign Up
-                            </Button>
+                            <Link href="/sign-in" className="w-full">
+                              <Button 
+                                variant="default" 
+                                className="w-full gap-2 h-9"
+                              >
+                                <LogIn size={16} />
+                                Sign In
+                              </Button>
+                            </Link>
+                            <Link href="/sign-up" className="w-full">
+                              <Button variant="outline" className="w-full gap-2 h-9">
+                                <User size={16} />
+                                Sign Up
+                              </Button>
+                            </Link>
                           </div>
                         </>
                       )}
