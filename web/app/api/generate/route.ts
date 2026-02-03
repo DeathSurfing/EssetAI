@@ -1,6 +1,6 @@
-import { generateText } from "ai";
+import { streamText } from "ai";
 import { createOpenRouterClient } from "@/lib/openrouter";
-import { parseGoogleMapsUrl, formatLocationContext } from "@/lib/location-parser";
+import { parseGoogleMapsUrl } from "@/lib/location-parser";
 import { generatePromptSchema } from "@/lib/prompt-quality";
 
 export const runtime = "edge";
@@ -51,7 +51,8 @@ Location: ${locationStr}`;
     
     console.log("Sending to model...");
     
-    const { text } = await generateText({
+    // Use streamText for streaming response
+    const result = streamText({
       model: client(model),
       system: systemPrompt,
       prompt: userPrompt,
@@ -59,23 +60,8 @@ Location: ${locationStr}`;
       maxOutputTokens: 1500,
     });
 
-    console.log("Generated text length:", text?.length || 0);
-    
-    if (!text || text.trim().length === 0) {
-      throw new Error("Model returned empty response");
-    }
-    
-    console.log("Text preview:", text.substring(0, 100));
-
-    return new Response(
-      JSON.stringify({ prompt: text }),
-      { 
-        status: 200, 
-        headers: { 
-          'Content-Type': 'application/json',
-        } 
-      }
-    );
+    // Return the stream response
+    return result.toTextStreamResponse();
   } catch (error) {
     console.error("Error in generate route:", error);
     

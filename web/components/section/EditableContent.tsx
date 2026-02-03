@@ -5,6 +5,7 @@ import * as React from "react";
 interface EditableContentProps {
   content: string;
   isEditing: boolean;
+  isRegenerating?: boolean;
   editedContent: string;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   onContentClick: () => void;
@@ -16,6 +17,7 @@ interface EditableContentProps {
 export function EditableContent({
   content,
   isEditing,
+  isRegenerating,
   editedContent,
   textareaRef,
   onContentClick,
@@ -42,6 +44,9 @@ export function EditableContent({
       className="font-mono text-sm whitespace-pre-wrap text-foreground leading-relaxed cursor-text hover:bg-accent/30 p-2 rounded transition-colors"
     >
       {content}
+      {isRegenerating && content.length > 0 && (
+        <span className="inline-block w-2 h-5 bg-primary ml-1 animate-pulse align-middle" />
+      )}
     </div>
   );
 }

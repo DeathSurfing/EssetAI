@@ -1,4 +1,4 @@
-import { generateText } from "ai";
+import { streamText } from "ai";
 import { createOpenRouterClient } from "@/lib/openrouter";
 import { z } from "zod";
 
@@ -71,7 +71,8 @@ Generate the new content for ${sectionName} now.`;
 
     console.log("Sending to model...");
     
-    const { text } = await generateText({
+    // Use streamText for streaming response
+    const result = streamText({
       model: client(model),
       system: systemPrompt,
       prompt: `Regenerate the ${sectionName} section based on the custom instructions provided.`,
@@ -79,23 +80,8 @@ Generate the new content for ${sectionName} now.`;
       maxOutputTokens: 500,
     });
 
-    console.log("Regenerated text length:", text?.length || 0);
-    
-    if (!text || text.trim().length === 0) {
-      throw new Error("Model returned empty response");
-    }
-    
-    console.log("Regenerated preview:", text.substring(0, 100));
-
-    return new Response(
-      JSON.stringify({ section: text.trim() }),
-      { 
-        status: 200, 
-        headers: { 
-          'Content-Type': 'application/json',
-        } 
-      }
-    );
+    // Return the stream response
+    return result.toTextStreamResponse();
   } catch (error) {
     console.error("Error in regenerate-section route:", error);
     

@@ -4,9 +4,21 @@ import * as React from "react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import gsap from "gsap";
 import { Card } from "@/components/ui/card";
-import { PromptHeader } from "./prompt/PromptHeader";
-import { PromptContent } from "./prompt/PromptContent";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
+import {
+  Message,
+  MessageContent,
+  MessageActions,
+  MessageAction,
+} from "@/components/ai-elements/message";
+import { Shimmer } from "@/components/ai-elements/shimmer";
+import { SectionCard } from "./SectionCard";
 import { OpenInButtons } from "./OpenInButtons";
+import { CopyIcon, CheckIcon } from "lucide-react";
 
 interface Section {
   header: string;
@@ -34,13 +46,18 @@ export function StreamingPromptOutput({
   onEditSection,
 }: StreamingPromptOutputProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const buttonsRef = useRef<HTMLDivElement>(null);
+  const hasAnimated = useRef(false);
   const [copied, setCopied] = useState(false);
 
-  // Entrance animation
+  // Entrance animation - only runs once when component first appears
   useEffect(() => {
-    if (!cardRef.current || (!text && !isLoading)) return;
+    if (!cardRef.current || hasAnimated.current) return;
+    
+    // Only animate if we have content or are loading
+    if (!text && !isLoading) return;
+
+    hasAnimated.current = true;
 
     const ctx = gsap.context(() => {
       gsap.fromTo(
@@ -55,12 +72,6 @@ export function StreamingPromptOutput({
         }
       );
 
-      gsap.fromTo(
-        scrollRef.current,
-        { opacity: 0 },
-        { opacity: 1, duration: 0.5, delay: 0.3 }
-      );
-
       if (buttonsRef.current) {
         gsap.fromTo(
           buttonsRef.current,
@@ -71,18 +82,8 @@ export function StreamingPromptOutput({
     }, cardRef);
 
     return () => ctx.revert();
-  }, [text, isLoading]);
-
-  // Auto-scroll while streaming
-  useEffect(() => {
-    if (scrollRef.current && isLoading) {
-      gsap.to(scrollRef.current, {
-        scrollTop: scrollRef.current.scrollHeight,
-        duration: 0.5,
-        ease: "power2.out",
-      });
-    }
-  }, [text, isLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only runs once on mount
 
   const handleCopy = useCallback(async () => {
     if (!text) return;
@@ -100,25 +101,105 @@ export function StreamingPromptOutput({
   }
 
   const hasContent = text.length > 0;
+  const hasSections = sections.length > 0;
   const isComplete = !isLoading && hasContent;
 
   return (
     <Card ref={cardRef} className="w-full overflow-hidden border-2 border-primary/20 shadow-xl">
-      <PromptHeader isLoading={!!isLoading} isComplete={isComplete} copied={copied} onCopy={handleCopy} />
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-border bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-3 h-3 rounded-full transition-colors duration-300 ${
+                isLoading ? "bg-primary animate-pulse" : "bg-green-500"
+              }`}
+            />
+            <h3 className="text-base font-semibold text-foreground">
+              Generated Website Prompt
+            </h3>
+          </div>
+          <div className="flex items-center gap-3">
+            {isLoading ? (
+              <Shimmer className="text-sm">Generating prompt...</Shimmer>
+            ) : (
+              <span className="text-sm text-green-600 font-medium">Complete</span>
+            )}
+            {isComplete && (
+              <MessageActions>
+                <MessageAction
+                  onClick={handleCopy}
+                  tooltip={copied ? "Copied!" : "Copy to clipboard"}
+                  label={copied ? "Copied" : "Copy"}
+                >
+                  {copied ? <CheckIcon size={16} /> : <CopyIcon size={16} />}
+                </MessageAction>
+              </MessageActions>
+            )}
+          </div>
+        </div>
+      </div>
 
+      {/* Content */}
       <div className="p-6">
         <div className="flex gap-6">
-          <div ref={scrollRef} className="flex-1 max-h-[600px] overflow-y-auto pr-2">
-            <PromptContent
-              text={text}
-              isLoading={!!isLoading}
-              sections={sections}
-              onRegenerateSection={onRegenerateSection}
-              onUndoSection={onUndoSection}
-              onEditSection={onEditSection}
-            />
+          {/* Left side - Prompt Content */}
+          <div className="flex-1 max-h-[600px]">
+            <Conversation className="max-h-[600px] overflow-y-auto">
+              <ConversationContent className="gap-4 p-0">
+                {!hasContent ? (
+                  <Message from="assistant" className="w-full max-w-full">
+                    <MessageContent className="w-full bg-muted/50 rounded-lg p-4">
+                      <div className="flex items-center gap-3 text-muted-foreground">
+                        <div className="w-3 h-3 bg-primary rounded-full animate-bounce" />
+                        <div
+                          className="w-3 h-3 bg-primary rounded-full animate-bounce"
+                          style={{ animationDelay: "0.1s" }}
+                        />
+                        <div
+                          className="w-3 h-3 bg-primary rounded-full animate-bounce"
+                          style={{ animationDelay: "0.2s" }}
+                        />
+                        <span className="text-base ml-2">Initializing...</span>
+                      </div>
+                    </MessageContent>
+                  </Message>
+                ) : !hasSections ? (
+                  <Message from="assistant" className="w-full max-w-full">
+                    <MessageContent className="w-full font-mono text-sm whitespace-pre-wrap text-foreground leading-relaxed p-4 bg-muted/50 rounded-lg">
+                      {text}
+                      {isLoading && (
+                        <span className="inline-block w-2 h-5 bg-primary ml-1 animate-pulse align-middle" />
+                      )}
+                    </MessageContent>
+                  </Message>
+                ) : (
+                  <div className="space-y-4">
+                    {sections.map((section, index) => (
+                      <SectionCard
+                        key={index}
+                        header={section.header}
+                        content={section.content}
+                        index={index}
+                        isRegenerating={section.isRegenerating}
+                        isDirty={section.isDirty}
+                        previousContent={section.previousContent}
+                        onRegenerate={onRegenerateSection}
+                        onUndo={onUndoSection}
+                        onEdit={onEditSection}
+                        allSections={sections.map(
+                          (s) => `${s.header}\n${s.content}`
+                        )}
+                      />
+                    ))}
+                  </div>
+                )}
+              </ConversationContent>
+              <ConversationScrollButton />
+            </Conversation>
           </div>
 
+          {/* Right side - Open In Buttons */}
           {isComplete && (
             <div ref={buttonsRef} className="shrink-0 w-[140px]">
               <div className="sticky top-0">

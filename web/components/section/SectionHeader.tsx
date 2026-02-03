@@ -10,6 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { Shimmer } from "@/components/ai-elements/shimmer";
 
 interface SectionHeaderProps {
   header: string;
@@ -47,9 +48,9 @@ export function SectionHeader({
           {header}
         </h4>
         {isRegenerating && (
-          <span className="text-xs text-muted-foreground animate-pulse bg-muted px-2 py-0.5 rounded">
-            Regenerating...
-          </span>
+          <Shimmer className="text-xs bg-muted px-2 py-0.5 rounded">
+            Regenerating
+          </Shimmer>
         )}
         {isDirty && !isRegenerating && (
           <span className="text-xs text-orange-500 bg-orange-100 dark:bg-orange-900/20 px-2 py-0.5 rounded">

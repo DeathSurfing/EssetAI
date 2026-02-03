@@ -112,6 +112,7 @@ export function SectionCard({
       <EditableContent
         content={content}
         isEditing={isEditing}
+        isRegenerating={isRegenerating}
         editedContent={editedContent}
         textareaRef={textareaRef}
         onContentClick={handleContentClick}

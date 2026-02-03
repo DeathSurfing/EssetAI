@@ -12,11 +12,13 @@ interface BusinessContext {
 
 interface UsePromptGenerationReturn {
   sections: SectionState[];
+  setSections: React.Dispatch<React.SetStateAction<SectionState[]>>;
   qualityScore: PromptQualityScore | null;
   isLoading: boolean;
   error: string | null;
   businessContext: BusinessContext | null;
   generatedPrompt: string;
+  streamingText: string;
   generatePrompt: (googleMapsUrl: string) => Promise<void>;
   clearError: () => void;
 }
@@ -27,6 +29,7 @@ export function usePromptGeneration(): UsePromptGenerationReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [businessContext, setBusinessContext] = useState<BusinessContext | null>(null);
+  const [streamingText, setStreamingText] = useState("");
 
   const generatedPrompt = sections
     .filter((s) => s.header)
@@ -40,6 +43,7 @@ export function usePromptGeneration(): UsePromptGenerationReturn {
     setError(null);
     setSections([]);
     setQualityScore(null);
+    setStreamingText("");
 
     try {
       console.log("Submitting URL:", googleMapsUrl);
@@ -63,17 +67,36 @@ export function usePromptGeneration(): UsePromptGenerationReturn {
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log("Received response:", data);
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
 
-      if (data.prompt) {
-        const parsedSections = parseSections(data.prompt);
-        setSections(parsedSections);
-        const score = calculateSectionsQualityScore(parsedSections);
-        setQualityScore(score);
-      } else {
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        fullText += chunk;
+        setStreamingText(fullText);
+      }
+
+      console.log("Received full text, length:", fullText.length);
+      console.log("Text preview:", fullText.substring(0, 100));
+
+      if (fullText.trim().length === 0) {
         throw new Error("No prompt in response");
       }
+
+      // Parse sections from the complete text
+      const parsedSections = parseSections(fullText);
+      setSections(parsedSections);
+      const score = calculateSectionsQualityScore(parsedSections);
+      setQualityScore(score);
     } catch (err) {
       console.error("Submit error:", err);
       setError(err instanceof Error ? err.message : "Failed to generate prompt");
@@ -88,11 +111,13 @@ export function usePromptGeneration(): UsePromptGenerationReturn {
 
   return {
     sections,
+    setSections,
     qualityScore,
     isLoading,
     error,
     businessContext,
     generatedPrompt,
+    streamingText,
     generatePrompt,
     clearError,
   };

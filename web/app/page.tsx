@@ -16,15 +16,20 @@ export default function Home() {
   const [googleMapsUrl, setGoogleMapsUrl] = useState("");
   const {
     sections,
+    setSections,
     qualityScore,
     isLoading,
     error,
     businessContext,
     generatedPrompt,
+    streamingText,
     generatePrompt,
   } = usePromptGeneration();
 
-  const { regenerateSection, undoSection, editSection } = useSectionManagement();
+  const { regenerateSection, undoSection, editSection } = useSectionManagement({
+    sections,
+    setSections,
+  });
 
   const mainRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -150,22 +155,17 @@ export default function Home() {
             <PromptInputWithMap value={googleMapsUrl} onChange={setGoogleMapsUrl} disabled={isLoading} />
           </div>
 
-          <Button
-            ref={buttonRef}
-            onClick={handleButtonClick}
-            disabled={!googleMapsUrl.trim() || isLoading}
-            className="w-full bg-gradient-to-r from-primary via-primary/90 to-primary hover:from-primary/90 hover:via-primary hover:to-primary/80 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 rounded-xl py-6 text-lg font-semibold"
-            size="lg"
-          >
-            {isLoading ? (
-              <>
-                <span className="animate-spin mr-2">⏳</span>
-                Generating...
-              </>
-            ) : (
-              "Generate Prompt"
-            )}
-          </Button>
+          {!isLoading && (
+            <Button
+              ref={buttonRef}
+              onClick={handleButtonClick}
+              disabled={!googleMapsUrl.trim()}
+              className="w-full bg-gradient-to-r from-primary via-primary/90 to-primary hover:from-primary/90 hover:via-primary hover:to-primary/80 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 rounded-xl py-6 text-lg font-semibold"
+              size="lg"
+            >
+              Generate Prompt
+            </Button>
+          )}
 
           {error && (
             <div
@@ -176,17 +176,17 @@ export default function Home() {
             </div>
           )}
 
-          {generatedPrompt && (
+          {(generatedPrompt || streamingText) && (
             <div
               ref={charCountRef}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-primary/10 to-primary/5 text-primary text-sm font-medium border border-primary/20 shadow-sm"
             >
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-              Generated {generatedPrompt.length} characters
+              Generated {(generatedPrompt || streamingText).length} characters
             </div>
           )}
 
-          {!generatedPrompt && !isLoading && !error && (
+          {!generatedPrompt && !streamingText && !isLoading && !error && (
             <div
               ref={emptyStateRef}
               className="text-center py-16 px-6 rounded-2xl bg-gradient-to-b from-muted/30 to-muted/10 border border-border/30"
@@ -214,7 +214,7 @@ export default function Home() {
           )}
 
           <PromptOutput
-            text={generatedPrompt}
+            text={streamingText || generatedPrompt}
             isLoading={isLoading}
             sections={sections}
             onRegenerateSection={handleRegenerateSection}
