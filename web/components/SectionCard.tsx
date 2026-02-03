@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import gsap from "gsap";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { RefreshIcon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,45 @@ export function SectionCard({
   const [isEditing, setIsEditing] = React.useState(false);
   const [editedContent, setEditedContent] = React.useState(content);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const cardRef = React.useRef<HTMLDivElement>(null);
+
+  // GSAP entrance animation
+  React.useEffect(() => {
+    if (cardRef.current) {
+      gsap.fromTo(
+        cardRef.current,
+        { opacity: 0, x: -20 },
+        { 
+          opacity: 1, 
+          x: 0, 
+          duration: 0.5, 
+          delay: index * 0.1,
+          ease: "power3.out" 
+        }
+      );
+    }
+  }, [index]);
+
+  // Hover animation handlers
+  const handleMouseEnter = () => {
+    if (cardRef.current) {
+      gsap.to(cardRef.current, {
+        x: 5,
+        duration: 0.3,
+        ease: "power2.out"
+      });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (cardRef.current) {
+      gsap.to(cardRef.current, {
+        x: 0,
+        duration: 0.3,
+        ease: "power2.out"
+      });
+    }
+  };
   
   // Update editedContent when content changes externally
   React.useEffect(() => {
@@ -100,6 +140,9 @@ export function SectionCard({
 
   return (
     <div
+      ref={cardRef}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       className={cn(
         "border-l-2 pl-4 py-2 transition-all duration-300 relative group",
         header
