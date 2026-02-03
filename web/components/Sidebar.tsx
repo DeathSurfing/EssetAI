@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, ChevronLeft, ChevronRight, Search, Clock, Settings, Moon, Sun, Trash2 } from "lucide-react";
+import { Home, ChevronLeft, ChevronRight, Search, Clock, Settings, Moon, Sun, Trash2, User, LogIn, LogOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SavedPrompt } from "@/hooks/usePromptHistory";
 
 interface SidebarProps {
@@ -41,6 +42,8 @@ export function Sidebar({
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [hoveredPromptId, setHoveredPromptId] = useState<string | null>(null);
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [userName, setUserName] = useState("John Doe");
 
   // Prevent hydration mismatch for theme
   React.useEffect(() => {
@@ -223,9 +226,100 @@ export function Sidebar({
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="mt-4 pt-4 border-t border-border text-xs text-muted-foreground text-center">
-                {prompts.length} / 10 prompts saved
+              {/* User Profile Section */}
+              <div className="mt-4 pt-4 border-t border-border">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <motion.button
+                      className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors group"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Avatar size="sm" className="shrink-0">
+                        <AvatarImage src="" />
+                        <AvatarFallback className="bg-primary/10 text-primary">
+                          {isSignedIn ? userName.split(' ').map(n => n[0]).join('').toUpperCase() : <User size={16} />}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {isSignedIn ? userName : "Not signed in"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {isSignedIn ? "Account" : "Sign in to sync"}
+                        </p>
+                      </div>
+                      
+                      <div className="w-2 h-2 rounded-full bg-green-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    </motion.button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64" align="start" side="top">
+                    <div className="space-y-4">
+                      {isSignedIn ? (
+                        <>
+                          <div className="flex items-center gap-3 pb-3 border-b">
+                            <Avatar>
+                              <AvatarImage src="" />
+                              <AvatarFallback className="bg-primary/10 text-primary">
+                                {userName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-sm">{userName}</p>
+                              <p className="text-xs text-muted-foreground">user@example.com</p>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Button variant="ghost" className="w-full justify-start gap-2 text-sm h-9">
+                              <User size={16} />
+                              Profile Settings
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              className="w-full justify-start gap-2 text-sm h-9 text-destructive hover:text-destructive"
+                              onClick={() => setIsSignedIn(false)}
+                            >
+                              <LogOut size={16} />
+                              Sign Out
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-center py-4">
+                            <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                              <User size={24} className="text-muted-foreground" />
+                            </div>
+                            <p className="font-medium text-sm mb-1">Sign in to esset.ai</p>
+                            <p className="text-xs text-muted-foreground">Sync your prompts across devices</p>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Button 
+                              variant="default" 
+                              className="w-full gap-2 h-9"
+                              onClick={() => setIsSignedIn(true)}
+                            >
+                              <LogIn size={16} />
+                              Sign In
+                            </Button>
+                            <Button variant="outline" className="w-full gap-2 h-9">
+                              <User size={16} />
+                              Sign Up
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                
+                {/* Original Footer */}
+                <div className="mt-3 text-xs text-muted-foreground text-center">
+                  {prompts.length} / 10 prompts saved
+                </div>
               </div>
             </motion.div>
           )}
