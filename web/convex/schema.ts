@@ -35,6 +35,8 @@ export default defineSchema({
     isPublic: v.optional(v.boolean()),
     shareToken: v.optional(v.string()),
     collaborators: v.optional(v.array(v.id("users"))),
+    shareMode: v.optional(v.union(v.literal("view"), v.literal("edit"))),
+    version: v.optional(v.number()),
   })
     .index("by_userId", ["userId"])
     .index("by_shareToken", ["shareToken"]),
@@ -60,4 +62,41 @@ export default defineSchema({
     lastGenerationAt: v.number(),
   })
     .index("by_fingerprint", ["fingerprint"]),
+
+  // Collaborative sessions - tracks active users editing a prompt
+  collaborativeSessions: defineTable({
+    promptId: v.id("prompts"),
+    userId: v.id("users"),
+    joinedAt: v.number(),
+    lastActiveAt: v.number(),
+    cursor: v.optional(v.object({
+      sectionIndex: v.number(),
+      position: v.number(),
+    })),
+    isTyping: v.optional(v.boolean()),
+  })
+    .index("by_promptId", ["promptId"])
+    .index("by_userId", ["userId"])
+    .index("by_promptId_userId", ["promptId", "userId"]),
+
+  // Collaborative edits - tracks changes made by users
+  collaborativeEdits: defineTable({
+    promptId: v.id("prompts"),
+    userId: v.id("users"),
+    sectionIndex: v.number(),
+    operation: v.union(
+      v.literal("insert"),
+      v.literal("delete"),
+      v.literal("replace")
+    ),
+    oldContent: v.optional(v.string()),
+    newContent: v.optional(v.string()),
+    position: v.optional(v.number()),
+    length: v.optional(v.number()),
+    timestamp: v.number(),
+    version: v.number(),
+  })
+    .index("by_promptId", ["promptId"])
+    .index("by_promptId_timestamp", ["promptId", "timestamp"])
+    .index("by_promptId_version", ["promptId", "version"]),
 });

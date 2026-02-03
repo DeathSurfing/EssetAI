@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as collaboration from "../collaboration.js";
 import type * as generations from "../generations.js";
 import type * as prompts from "../prompts.js";
 import type * as users from "../users.js";
@@ -19,6 +20,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  collaboration: typeof collaboration;
   generations: typeof generations;
   prompts: typeof prompts;
   users: typeof users;

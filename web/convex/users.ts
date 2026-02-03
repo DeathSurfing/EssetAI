@@ -34,7 +34,7 @@ export const getCurrentUser = query({
   },
 });
 
-export const syncUserFromWorkOS = internalMutation({
+export const syncUserFromWorkOS = mutation({
   args: {
     workosId: v.string(),
     email: v.string(),

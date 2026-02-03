@@ -3,6 +3,8 @@ import { Playfair_Display, Inter, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
+import { UserSync } from "@/components/auth/UserSync";
+import { PromptMigration } from "@/components/auth/PromptMigration";
 import "./globals.css";
 
 // Editorial display font for headings
@@ -46,6 +48,10 @@ export default function RootLayout({
         className={`${playfair.variable} ${inter.variable} ${jetbrainsMono.variable} font-body antialiased`}
       >
         <ConvexClientProvider>
+          {/* Sync WorkOS users to Convex */}
+          <UserSync />
+          {/* Migrate localStorage prompts to Convex on login */}
+          <PromptMigration />
           <ThemeProvider
             attribute="class"
             defaultTheme="light"
