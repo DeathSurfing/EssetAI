@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { SectionState } from "@/lib/prompt-parser";
 
 type ViewState = "input" | "output";
 
@@ -65,7 +66,7 @@ export default function Home() {
     generatePrompt,
   } = usePromptGeneration();
 
-  const { regenerateSection, undoSection, editSection } = useSectionManagement({
+  const { regenerateSection, undoSection, editSection, syncSections } = useSectionManagement({
     sections,
     setSections,
   });
@@ -295,6 +296,7 @@ export default function Home() {
                 onRegenerateSection={handleRegenerateSection}
                 onUndoSection={handleUndoSection}
                 onEditSection={handleEditSection}
+                onSyncSections={syncSections}
                 onBack={handleHomeClick}
                 promptId={currentPromptId}
                 isOwner={promptAccess?.access === "owner"}

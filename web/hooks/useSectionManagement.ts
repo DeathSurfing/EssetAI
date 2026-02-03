@@ -23,6 +23,7 @@ interface UseSectionManagementReturn {
   ) => Promise<void>;
   undoSection: (header: string) => void;
   editSection: (header: string, newContent: string) => PromptQualityScore | null;
+  syncSections: (newSections: SectionState[]) => void;
   recalculateQualityScore: () => PromptQualityScore | null;
 }
 
@@ -195,10 +196,18 @@ export function useSectionManagement({
     return calculateQualityScore(prompt);
   }, [sections]);
 
+  const syncSections = useCallback(
+    (newSections: SectionState[]) => {
+      setSections(newSections);
+    },
+    [setSections]
+  );
+
   return {
     regenerateSection,
     undoSection,
     editSection,
+    syncSections,
     recalculateQualityScore,
   };
 }

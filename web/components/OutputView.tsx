@@ -24,6 +24,7 @@ interface OutputViewProps {
   onRegenerateSection: (header: string, customPrompt: string) => void;
   onUndoSection: (header: string) => void;
   onEditSection: (header: string, newContent: string) => void;
+  onSyncSections?: (sections: SectionState[]) => void;
   onBack?: () => void;
   showUrlInput?: boolean;
   promptId?: string;
@@ -45,6 +46,7 @@ export function OutputView({
   onRegenerateSection,
   onUndoSection,
   onEditSection,
+  onSyncSections,
   onBack,
   showUrlInput = true,
   promptId,
@@ -145,7 +147,7 @@ export function OutputView({
             sections={sections}
             onSectionsChange={(newSections) => {
               // Update sections when collaborative edits come in
-              onEditSection?.("__all__", JSON.stringify(newSections));
+              onSyncSections?.(newSections);
             }}
           >
             <div className="max-w-7xl mx-auto space-y-6">
