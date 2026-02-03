@@ -17,9 +17,11 @@ interface SectionCardProps {
   content: string;
   index: number;
   isRegenerating: boolean;
+  isDirty: boolean;
   previousContent: string | null;
   onRegenerate: (header: string, customPrompt: string) => void;
   onUndo: (header: string) => void;
+  onEdit: (header: string, newContent: string) => void;
   allSections: string[];
 }
 
@@ -28,13 +30,25 @@ export function SectionCard({
   content,
   index,
   isRegenerating,
+  isDirty,
   previousContent,
   onRegenerate,
   onUndo,
+  onEdit,
   allSections,
 }: SectionCardProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [customPrompt, setCustomPrompt] = React.useState("");
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editedContent, setEditedContent] = React.useState(content);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  
+  // Update editedContent when content changes externally
+  React.useEffect(() => {
+    if (!isEditing) {
+      setEditedContent(content);
+    }
+  }, [content, isEditing]);
 
   const handleApply = () => {
     onRegenerate(header, customPrompt);
@@ -50,6 +64,30 @@ export function SectionCard({
   const handleCancel = () => {
     setIsOpen(false);
     setCustomPrompt("");
+  };
+  
+  const handleContentClick = () => {
+    setIsEditing(true);
+    // Auto-focus textarea after render
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  };
+  
+  const handleContentBlur = () => {
+    setIsEditing(false);
+    if (editedContent !== content) {
+      onEdit(header, editedContent);
+    }
+  };
+  
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setEditedContent(e.target.value);
+  };
+  
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape') {
+      setIsEditing(false);
+      setEditedContent(content); // Revert on Escape
+    }
   };
 
   return (
@@ -70,6 +108,11 @@ export function SectionCard({
             {isRegenerating && (
               <span className="text-xs text-muted-foreground animate-pulse bg-muted px-2 py-0.5 rounded">
                 Regenerating...
+              </span>
+            )}
+            {isDirty && !isRegenerating && (
+              <span className="text-xs text-orange-500 bg-orange-100 dark:bg-orange-900/20 px-2 py-0.5 rounded">
+                Edited
               </span>
             )}
           </div>
@@ -149,9 +192,23 @@ export function SectionCard({
           </Popover>
         </div>
       )}
-      <div className="font-mono text-sm whitespace-pre-wrap text-foreground leading-relaxed">
-        {content}
-      </div>
+      {isEditing ? (
+        <textarea
+          ref={textareaRef}
+          value={editedContent}
+          onChange={handleContentChange}
+          onBlur={handleContentBlur}
+          onKeyDown={handleKeyDown}
+          className="w-full min-h-[80px] p-2 font-mono text-sm bg-background border-2 border-primary rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-primary/20"
+        />
+      ) : (
+        <div 
+          onClick={handleContentClick}
+          className="font-mono text-sm whitespace-pre-wrap text-foreground leading-relaxed cursor-text hover:bg-accent/30 p-2 rounded transition-colors"
+        >
+          {content}
+        </div>
+      )}
     </div>
   );
 }

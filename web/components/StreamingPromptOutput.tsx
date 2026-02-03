@@ -17,9 +17,11 @@ interface StreamingPromptOutputProps {
     content: string;
     previousContent: string | null;
     isRegenerating: boolean;
+    isDirty: boolean;
   }[];
   onRegenerateSection: (header: string, customPrompt: string) => void;
   onUndoSection: (header: string) => void;
+  onEditSection: (header: string, newContent: string) => void;
 }
 
 export function StreamingPromptOutput({
@@ -28,6 +30,7 @@ export function StreamingPromptOutput({
   sections,
   onRegenerateSection,
   onUndoSection,
+  onEditSection,
 }: StreamingPromptOutputProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
@@ -124,9 +127,11 @@ export function StreamingPromptOutput({
                 content={section.content}
                 index={index}
                 isRegenerating={section.isRegenerating}
+                isDirty={section.isDirty}
                 previousContent={section.previousContent}
                 onRegenerate={onRegenerateSection}
                 onUndo={onUndoSection}
+                onEdit={onEditSection}
                 allSections={sections.map(s => `${s.header}\n${s.content}`)}
               />
             ))}

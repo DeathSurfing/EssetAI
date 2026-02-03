@@ -4,7 +4,7 @@ import * as React from "react";
 import { useState } from "react";
 import { Container } from "@/components/Container";
 import { Header } from "@/components/Header";
-import { PromptInput } from "@/components/PromptInput";
+import { PromptInputWithMap } from "@/components/PromptInputWithMap";
 import { BuilderToggle } from "@/components/BuilderToggle";
 import { StreamingPromptOutput as PromptOutput } from "@/components/StreamingPromptOutput";
 import { PromptQualityScoreDisplay } from "@/components/PromptQualityScore";
@@ -19,6 +19,7 @@ type SectionState = {
   content: string;
   previousContent: string | null;
   isRegenerating: boolean;
+  isDirty: boolean;
 };
 
 const SECTION_HEADERS = [
@@ -54,6 +55,7 @@ function parseSections(text: string): SectionState[] {
           content: currentContent.trim(),
           previousContent: null,
           isRegenerating: false,
+          isDirty: false,
         });
       }
       currentHeader = trimmedLine.replace(/:$/, "");
@@ -69,6 +71,7 @@ function parseSections(text: string): SectionState[] {
       content: currentContent.trim(),
       previousContent: null,
       isRegenerating: false,
+      isDirty: false,
     });
   }
   
@@ -179,7 +182,7 @@ export default function Home() {
       if (data.section) {
         setSections(prev => prev.map((s, i) => 
           i === sectionIndex 
-            ? { ...s, content: data.section, previousContent: s.content, isRegenerating: false }
+            ? { ...s, content: data.section, previousContent: s.content, isRegenerating: false, isDirty: true }
             : s
         ));
         
@@ -208,13 +211,31 @@ export default function Home() {
     
     setSections(prev => prev.map((s, i) => 
       i === sectionIndex 
-        ? { ...s, content: s.previousContent!, previousContent: null }
+        ? { ...s, content: s.previousContent!, previousContent: null, isDirty: false }
         : s
     ));
     
     // Recalculate quality score
     const newPrompt = assemblePrompt(sections.map((s, i) => 
       i === sectionIndex ? { ...s, content: s.previousContent! } : s
+    ));
+    const score = calculateQualityScore(newPrompt);
+    setQualityScore(score);
+  };
+  
+  const handleEditSection = (header: string, newContent: string) => {
+    const sectionIndex = sections.findIndex(s => s.header === header);
+    if (sectionIndex === -1) return;
+    
+    setSections(prev => prev.map((s, i) => 
+      i === sectionIndex 
+        ? { ...s, content: newContent, previousContent: s.previousContent || s.content, isDirty: true }
+        : s
+    ));
+    
+    // Recalculate quality score
+    const newPrompt = assemblePrompt(sections.map((s, i) => 
+      i === sectionIndex ? { ...s, content: newContent } : s
     ));
     const score = calculateQualityScore(newPrompt);
     setQualityScore(score);
@@ -232,7 +253,7 @@ export default function Home() {
         <Header />
         
         <div className="space-y-6">
-          <PromptInput
+          <PromptInputWithMap
             value={googleMapsUrl}
             onChange={setGoogleMapsUrl}
             disabled={isLoading}
@@ -284,6 +305,7 @@ export default function Home() {
             sections={sections}
             onRegenerateSection={handleRegenerateSection}
             onUndoSection={handleUndoSection}
+            onEditSection={handleEditSection}
           />
           
           {qualityScore && <PromptQualityScoreDisplay score={qualityScore} />}
