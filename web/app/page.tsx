@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { InputView } from "@/components/InputView";
 import { OutputView } from "@/components/OutputView";
@@ -39,6 +39,12 @@ export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
 
+  // Track if we need to save after generation
+  const pendingSaveRef = useRef<{
+    url: string;
+    businessName: string;
+  } | null>(null);
+
   // Input state
   const [googleMapsUrl, setGoogleMapsUrl] = useState("");
 
@@ -60,12 +66,34 @@ export default function Home() {
     setSections,
   });
 
-  const { prompts, addPrompt, searchPrompts } = usePromptHistory();
+  const { prompts, addPrompt, deletePrompt, searchPrompts } = usePromptHistory();
 
   // Filtered prompts based on search
   const filteredPrompts = searchQuery
     ? searchPrompts(searchQuery)
     : prompts;
+
+  // Save prompt after generation completes
+  useEffect(() => {
+    if (
+      pendingSaveRef.current &&
+      !isLoading &&
+      sections.length > 0 &&
+      businessContext
+    ) {
+      // Generation is complete, save the prompt
+      addPrompt({
+        placeName: businessContext.name,
+        url: pendingSaveRef.current.url,
+        promptPreview: generatedPrompt.slice(0, 150) + "...",
+        fullPrompt: generatedPrompt,
+        sections: sections,
+      });
+      
+      // Clear the pending save
+      pendingSaveRef.current = null;
+    }
+  }, [isLoading, sections, businessContext, generatedPrompt, addPrompt]);
 
   // Handle generate with animation
   const handleGenerate = useCallback(async () => {
@@ -75,29 +103,24 @@ export default function Home() {
     setIsGenerating(true);
     setShowOutput(false);
 
+    // Store pending save info
+    pendingSaveRef.current = {
+      url: googleMapsUrl,
+      businessName: businessContext?.name || "Business",
+    };
+
     // Start the actual generation
     await generatePrompt(googleMapsUrl);
 
     // Animation will handle the transition
-  }, [googleMapsUrl, generatePrompt]);
+  }, [googleMapsUrl, generatePrompt, businessContext]);
 
   // Handle animation complete
   const handleAnimationComplete = useCallback(() => {
     setIsGenerating(false);
     setShowOutput(true);
     setView("output");
-
-    // Save to history after animation completes
-    if (businessContext) {
-      addPrompt({
-        placeName: businessContext.name,
-        url: googleMapsUrl,
-        promptPreview: (generatedPrompt || streamingText).slice(0, 150) + "...",
-        fullPrompt: generatedPrompt || streamingText,
-        sections: sections,
-      });
-    }
-  }, [businessContext, googleMapsUrl, generatedPrompt, streamingText, sections, addPrompt]);
+  }, []);
 
   // Handle home click
   const handleHomeClick = useCallback(() => {
@@ -110,11 +133,13 @@ export default function Home() {
 
   // Handle prompt selection from sidebar
   const handlePromptClick = useCallback((prompt: SavedPrompt) => {
+    // Load the saved prompt data into state
     setGoogleMapsUrl(prompt.url);
     setCurrentPromptId(prompt.id);
+    setSections(prompt.sections);
     setView("output");
     setShowOutput(true);
-  }, []);
+  }, [setSections]);
 
   // Handle regenerate section
   const handleRegenerateSection = useCallback(
@@ -163,6 +188,7 @@ export default function Home() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onPromptClick={handlePromptClick}
+        onDeletePrompt={deletePrompt}
         currentPromptId={currentPromptId}
       />
 

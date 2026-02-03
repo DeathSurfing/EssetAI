@@ -3,9 +3,15 @@
 import * as React from "react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, ChevronLeft, ChevronRight, Search, Clock } from "lucide-react";
+import { Home, ChevronLeft, ChevronRight, Search, Clock, Settings, Moon, Sun, Trash2 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { SavedPrompt } from "@/hooks/usePromptHistory";
 
 interface SidebarProps {
@@ -16,6 +22,7 @@ interface SidebarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onPromptClick: (prompt: SavedPrompt) => void;
+  onDeletePrompt?: (id: string) => void;
   currentPromptId?: string;
 }
 
@@ -27,9 +34,18 @@ export function Sidebar({
   searchQuery,
   onSearchChange,
   onPromptClick,
+  onDeletePrompt,
   currentPromptId,
 }: SidebarProps) {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [hoveredPromptId, setHoveredPromptId] = useState<string | null>(null);
+
+  // Prevent hydration mismatch for theme
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -40,6 +56,8 @@ export function Sidebar({
       minute: "2-digit",
     });
   };
+
+  const isDark = theme === "dark";
 
   return (
     <>
@@ -72,6 +90,45 @@ export function Sidebar({
                     esset.ai
                   </span>
                 </div>
+                
+                {/* Preferences Popover */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                    >
+                      <Settings size={18} />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56" align="end">
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-sm">Preferences</h4>
+                      
+                      {/* Theme Toggle */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Theme</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setTheme(isDark ? "light" : "dark")}
+                          className="h-8 w-8 p-0"
+                        >
+                          {mounted ? (
+                            isDark ? (
+                              <Sun size={16} className="text-yellow-400" />
+                            ) : (
+                              <Moon size={16} />
+                            )
+                          ) : (
+                            <div className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Home Button */}
@@ -111,30 +168,56 @@ export function Sidebar({
                     </div>
                   ) : (
                     prompts.map((prompt) => (
-                      <button
+                      <div
                         key={prompt.id}
-                        onClick={() => onPromptClick(prompt)}
-                        className={`w-full text-left p-3 rounded-lg transition-colors group ${
+                        className={`relative group w-full text-left p-3 rounded-lg transition-all cursor-pointer ${
                           currentPromptId === prompt.id
                             ? "bg-primary/10 border border-primary/20"
                             : "hover:bg-accent border border-transparent"
                         }`}
+                        onMouseEnter={() => setHoveredPromptId(prompt.id)}
+                        onMouseLeave={() => setHoveredPromptId(null)}
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-sm text-foreground truncate">
-                              {prompt.placeName}
-                            </h3>
-                            <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                              <Clock size={12} />
-                              <span>{formatDate(prompt.timestamp)}</span>
+                        <div onClick={() => onPromptClick(prompt)}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-sm text-foreground truncate pr-8">
+                                {prompt.placeName}
+                              </h3>
+                              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                                <Clock size={12} />
+                                <span>{formatDate(prompt.timestamp)}</span>
+                              </div>
                             </div>
                           </div>
+                          <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                            {prompt.promptPreview}
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-                          {prompt.promptPreview}
-                        </p>
-                      </button>
+                        
+                        {/* Delete Button */}
+                        {onDeletePrompt && (
+                          <motion.button
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ 
+                              opacity: hoveredPromptId === prompt.id ? 1 : 0,
+                              scale: hoveredPromptId === prompt.id ? 1 : 0.8
+                            }}
+                            transition={{ duration: 0.15 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeletePrompt(prompt.id);
+                              if (currentPromptId === prompt.id) {
+                                onHomeClick();
+                              }
+                            }}
+                            className="absolute top-2 right-2 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            title="Delete chat"
+                          >
+                            <Trash2 size={14} />
+                          </motion.button>
+                        )}
+                      </div>
                     ))
                   )}
                 </div>
