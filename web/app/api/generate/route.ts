@@ -84,10 +84,21 @@ Business Name: ${businessName}`;
       prompt: userPrompt,
       temperature: 0.3,
       maxOutputTokens: 1500,
+      onError: (error) => {
+        console.error("Streaming error:", error);
+      },
     });
 
-    // Return the stream response
-    return result.toTextStreamResponse();
+    // Return the stream response with explicit headers for production
+    const response = result.toTextStreamResponse({
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Transfer-Encoding': 'chunked',
+        'X-Accel-Buffering': 'no', // Disable nginx buffering
+      },
+    });
+    
+    return response;
   } catch (error) {
     console.error("Error in generate route:", error);
     
