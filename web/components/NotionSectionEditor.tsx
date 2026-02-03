@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { Lock, Pencil, Check, X } from "lucide-react";
+import { Lock, Pencil, Check, X, Sparkles, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
@@ -17,6 +17,8 @@ interface NotionSectionEditorProps {
   content: string;
   promptId: string;
   onContentChange: (newContent: string) => void;
+  onRegenerate?: (header: string, customPrompt: string) => void;
+  isRegenerating?: boolean;
   className?: string;
 }
 
@@ -35,11 +37,15 @@ export function NotionSectionEditor({
   content,
   promptId,
   onContentChange,
+  onRegenerate,
+  isRegenerating = false,
   className,
 }: NotionSectionEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [localContent, setLocalContent] = useState(content);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -277,6 +283,20 @@ export function NotionSectionEditor({
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Regenerate button */}
+          {onRegenerate && !isEditing && !lockedByOther && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowRegenerateDialog(true);
+              }}
+              className="p-1.5 rounded-md hover:bg-purple-500/10 text-purple-600 transition-colors opacity-0 group-hover:opacity-100"
+              title="Regenerate with AI"
+            >
+              <Sparkles className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -349,6 +369,67 @@ export function NotionSectionEditor({
               <Pencil className="w-3 h-3" />
               <span>Editing...</span>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Regenerate Dialog */}
+      <AnimatePresence>
+        {showRegenerateDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowRegenerateDialog(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-background rounded-lg p-6 max-w-md w-full mx-4 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h4 className="text-lg font-semibold mb-2">Regenerate {header}</h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                Add custom instructions for the AI (optional)
+              </p>
+              <textarea
+                value={customPrompt}
+                onChange={(e) => setCustomPrompt(e.target.value)}
+                placeholder="e.g., Make it more professional, focus on sustainability..."
+                className="w-full min-h-[80px] p-3 rounded-md border bg-background resize-none text-sm mb-4"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowRegenerateDialog(false)}
+                  className="px-4 py-2 rounded-md hover:bg-muted transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    onRegenerate?.(header, customPrompt);
+                    setShowRegenerateDialog(false);
+                    setCustomPrompt("");
+                  }}
+                  disabled={isRegenerating}
+                  className="px-4 py-2 rounded-md bg-purple-600 text-white hover:bg-purple-700 transition-colors text-sm flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isRegenerating ? (
+                    <>
+                      <RotateCcw className="w-4 h-4 animate-spin" />
+                      Regenerating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      Regenerate
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

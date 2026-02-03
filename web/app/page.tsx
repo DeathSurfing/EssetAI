@@ -69,6 +69,7 @@ export default function Home() {
   const { regenerateSection, undoSection, editSection, syncSections } = useSectionManagement({
     sections,
     setSections,
+    promptId: currentPromptId,
   });
 
   const { prompts, addPrompt, deletePrompt, searchPrompts } = usePromptHistory();

@@ -259,3 +259,48 @@ export const getSharedPrompts = query({
     return enriched;
   },
 });
+
+// Update prompt sections (for both owners and collaborators)
+export const updatePromptSections = mutation({
+  args: {
+    promptId: v.id("prompts"),
+    sections: v.array(
+      v.object({
+        header: v.string(),
+        content: v.string(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    const prompt = await ctx.db.get(args.promptId);
+    if (!prompt) throw new Error("Prompt not found");
+
+    // Check permissions - owner OR collaborator can edit
+    const isOwner = prompt.userId === user._id;
+    const isCollaborator = prompt.collaborators?.includes(user._id);
+    const canEdit = isOwner || isCollaborator || (prompt.isPublic && prompt.shareMode === "edit");
+
+    if (!canEdit) throw new Error("Edit permission denied");
+
+    const now = Date.now();
+
+    // Update the prompt sections
+    await ctx.db.patch(args.promptId, {
+      sections: args.sections,
+      updatedAt: now,
+      version: (prompt.version || 0) + 1,
+    });
+
+    return { success: true, updatedAt: now };
+  },
+});

@@ -200,9 +200,11 @@ export function StreamingPromptOutput({
                             header={section.header}
                             content={section.content}
                             promptId={promptId}
+                            isRegenerating={section.isRegenerating}
                             onContentChange={(newContent) => {
                               onEditSection(section.header, newContent);
                             }}
+                            onRegenerate={onRegenerateSection}
                           />
                         ) : (
                           <SectionCard

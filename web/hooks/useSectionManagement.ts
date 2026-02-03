@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback } from "react";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { SectionState, assemblePrompt } from "@/lib/prompt-parser";
 import { PromptQualityScore, calculateQualityScore } from "@/lib/prompt-quality";
+import { Id } from "@/convex/_generated/dataModel";
 
 interface BusinessContext {
   name: string;
@@ -12,6 +15,7 @@ interface BusinessContext {
 interface UseSectionManagementParams {
   sections: SectionState[];
   setSections: React.Dispatch<React.SetStateAction<SectionState[]>>;
+  promptId?: string;
 }
 
 interface UseSectionManagementReturn {
@@ -22,7 +26,7 @@ interface UseSectionManagementReturn {
     onStream?: (text: string) => void
   ) => Promise<void>;
   undoSection: (header: string) => void;
-  editSection: (header: string, newContent: string) => PromptQualityScore | null;
+  editSection: (header: string, newContent: string) => Promise<PromptQualityScore | null>;
   syncSections: (newSections: SectionState[]) => void;
   recalculateQualityScore: () => PromptQualityScore | null;
 }
@@ -30,7 +34,11 @@ interface UseSectionManagementReturn {
 export function useSectionManagement({
   sections,
   setSections,
+  promptId,
 }: UseSectionManagementParams): UseSectionManagementReturn {
+  // Convex mutation for saving sections
+  const updatePromptSections = useMutation(api.prompts.updatePromptSections);
+
   const regenerateSection = useCallback(
     async (
       header: string,
@@ -107,19 +115,34 @@ export function useSectionManagement({
         }
 
         // Final update with complete text
-        setSections((prev) =>
-          prev.map((s, i) =>
-            i === sectionIndex
-              ? {
-                  ...s,
-                  content: fullText.trim(),
-                  previousContent: originalSection.content,
-                  isRegenerating: false,
-                  isDirty: true,
-                }
-              : s
-          )
+        const finalSections = sections.map((s, i) =>
+          i === sectionIndex
+            ? {
+                ...s,
+                content: fullText.trim(),
+                previousContent: originalSection.content,
+                isRegenerating: false,
+                isDirty: true,
+              }
+            : s
         );
+
+        setSections(finalSections);
+
+        // Save to Convex if we have a promptId
+        if (promptId) {
+          try {
+            await updatePromptSections({
+              promptId: promptId as Id<"prompts">,
+              sections: finalSections.map((s) => ({
+                header: s.header,
+                content: s.content,
+              })),
+            });
+          } catch (error) {
+            console.error("Failed to save regenerated section:", error);
+          }
+        }
       } catch (err) {
         console.error("Regenerate error:", err);
         setSections((prev) =>
@@ -136,7 +159,7 @@ export function useSectionManagement({
         throw err;
       }
     },
-    [sections, setSections]
+    [sections, setSections, promptId, updatePromptSections]
   );
 
   const undoSection = useCallback(
@@ -164,31 +187,43 @@ export function useSectionManagement({
   );
 
   const editSection = useCallback(
-    (header: string, newContent: string) => {
+    async (header: string, newContent: string): Promise<PromptQualityScore | null> => {
       const sectionIndex = sections.findIndex((s) => s.header === header);
       if (sectionIndex === -1) return null;
 
-      setSections((prev) =>
-        prev.map((s, i) =>
-          i === sectionIndex
-            ? {
-                ...s,
-                content: newContent,
-                previousContent: s.previousContent || s.content,
-                isDirty: true,
-              }
-            : s
-        )
+      const updatedSections = sections.map((s, i) =>
+        i === sectionIndex
+          ? {
+              ...s,
+              content: newContent,
+              previousContent: s.previousContent || s.content,
+              isDirty: true,
+            }
+          : s
       );
 
+      setSections(updatedSections);
+
+      // Save to Convex if we have a promptId
+      if (promptId) {
+        try {
+          await updatePromptSections({
+            promptId: promptId as Id<"prompts">,
+            sections: updatedSections.map((s) => ({
+              header: s.header,
+              content: s.content,
+            })),
+          });
+        } catch (error) {
+          console.error("Failed to save edited section:", error);
+        }
+      }
+
       // Return new quality score
-      const newSections = sections.map((s, i) =>
-        i === sectionIndex ? { ...s, content: newContent } : s
-      );
-      const newPrompt = assemblePrompt(newSections);
+      const newPrompt = assemblePrompt(updatedSections);
       return calculateQualityScore(newPrompt);
     },
-    [sections, setSections]
+    [sections, setSections, promptId, updatePromptSections]
   );
 
   const recalculateQualityScore = useCallback(() => {
