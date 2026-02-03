@@ -215,41 +215,55 @@ export function InputView({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: hasUrl ? 1 : 0.5 }}
-          className="flex justify-center"
+          className={cn(
+            "flex justify-center transition-all duration-300",
+            hasUrl ? "w-full" : "w-auto"
+          )}
         >
 <Button
             onClick={handleGenerate}
             disabled={!hasUrl || isLoading || isExpanding}
-            size="lg"
             className={cn(
-              "w-full max-w-md h-14 text-lg font-semibold rounded-xl",
+              // Dynamic sizing and shape
+              hasUrl 
+                ? "w-full max-w-md h-14 text-lg font-semibold rounded-2xl px-6" 
+                : "w-14 h-14 rounded-full p-0",
+              
+              // Enhanced rounded corners and styling
               "bg-gradient-to-r from-primary via-primary/90 to-primary",
               "hover:from-primary/90 hover:via-primary hover:to-primary/80",
               "text-primary-foreground shadow-lg hover:shadow-xl",
               "transition-all duration-300 hover:-translate-y-0.5",
               "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             )}
+            aria-label={hasUrl ? "Generate website prompt" : "Generate"}
           >
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <motion.span
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                >
+            {hasUrl ? (
+              // Full content when URL is present
+              isLoading ? (
+                <span className="flex items-center gap-2">
+                  <motion.span
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Sparkles size={20} />
+                  </motion.span>
+                  Generating...
+                </span>
+              ) : isExpanding ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 size={20} className="animate-spin" />
+                  Expanding URL...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
                   <Sparkles size={20} />
-                </motion.span>
-                Generating...
-              </span>
-            ) : isExpanding ? (
-              <span className="flex items-center gap-2">
-                <Loader2 size={20} className="animate-spin" />
-                Expanding URL...
-              </span>
+                  {parsedLocation?.isExpanded ? 'Generate (Expanded URL)' : 'Generate Website Prompt'}
+                </span>
+              )
             ) : (
-              <span className="flex items-center gap-2">
-                <Sparkles size={20} />
-                {parsedLocation?.isExpanded ? 'Generate (Expanded URL)' : 'Generate Website Prompt'}
-              </span>
+              // Icon-only when no URL
+              <Sparkles size={20} />
             )}
           </Button>
         </motion.div>
