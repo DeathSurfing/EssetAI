@@ -57,8 +57,6 @@ cp .env.local.example .env.local
 
 4. Add your API keys to `.env.local`:
 ```env
-OPENAI_API_KEY=your_openai_api_key
-# OR for OpenRouter
 OPENROUTER_API_KEY=your_openrouter_api_key
 ```
 
@@ -175,7 +173,6 @@ bun lint         # Run ESLint
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `OPENAI_API_KEY` | OpenAI API key for AI generation | Yes* |
 | `OPENROUTER_API_KEY` | Alternative AI provider key | Yes* |
 
 *At least one AI provider key is required
@@ -253,7 +250,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Tailwind CSS](https://tailwindcss.com) - Utility-first CSS framework
 - [Radix UI](https://radix-ui.com) - Headless UI components
 - [GSAP](https://greensock.com/gsap) - Professional animation library
-- [OpenAI](https://openai.com) - AI model provider
 - [Nominatim](https://nominatim.org) - OpenStreetMap geocoding service
 
 ---
