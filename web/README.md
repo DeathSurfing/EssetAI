@@ -50,17 +50,9 @@ cd esset-ai
 bun install
 ```
 
-3. Set up environment variables:
-```bash
-cp .env.local.example .env.local
-```
+4. Create .env file from the section below
 
-4. Add your API keys to `.env.local`:
-```env
-OPENROUTER_API_KEY=your_openrouter_api_key
-```
-
-5. Run the development server:
+3. Run the development server:
 ```bash
 bun dev
 ```
@@ -170,13 +162,27 @@ bun lint         # Run ESLint
 - **Tailwind**: Custom design tokens via CSS variables
 
 ### Environment Variables
+``` env
+# OpenRouter API Configuration
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+OPENROUTER_MODEL=arcee-ai/trinity-large-preview:free
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `OPENROUTER_API_KEY` | Alternative AI provider key | Yes* |
+# WorkOS AuthKit Configuration
+# Get these from https://dashboard.workos.com
+WORKOS_CLIENT_ID=client_your_client_id_here
 
-*At least one AI provider key is required
+# IMPORTANT: Use sk_live_ for production, NOT sk_test_
+WORKOS_API_KEY=sk_live_your_production_api_key_here
 
+# Generate a secure 32+ character password
+WORKOS_COOKIE_PASSWORD=your_secure_random_32_char_password_here
+
+NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://esset.adityavikram.dev/callback
+
+# Convex Configuration (filled in after running npx convex dev)
+NEXT_PUBLIC_CONVEX_URL=your_convex_url_here
+CONVEX_DEPLOY_KEY=your_convex_deploy_key_here
+```
 ## 📝 Usage Guide
 
 ### Generating a Website Prompt
