@@ -48,20 +48,6 @@ import { Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-interface Collaborator {
-  userId: string;
-  name: string;
-  email?: string;
-  avatar?: string;
-}
-
-interface InviteDialogProps {
-  promptId: string;
-  isOwner: boolean;
-  userRole: "free" | "normal" | "paid" | "admin";
-  currentCollaborators: Collaborator[];
-}
-
 const collaboratorLimits = {
   free: 0,
   normal: 3,
@@ -83,6 +69,48 @@ const roleColors = {
   admin: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
 };
 
+interface Collaborator {
+  userId: string;
+  name: string;
+  email?: string;
+  avatar?: string;
+}
+
+interface InviteDialogProps {
+  promptId: string;
+  isOwner: boolean;
+  userRole: "free" | "normal" | "paid" | "admin";
+  currentCollaborators: Collaborator[];
+}
+
+async function handleUpgrade(targetRole: "normal" | "paid", workosId: string | undefined, email: string | undefined) {
+  if (!email || !workosId) {
+    toast.error("Please sign in to upgrade");
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/stripe/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        role: targetRole,
+        workosId,
+        email,
+      }),
+    });
+
+    const data = await response.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      toast.error(data.error || "Failed to create checkout session");
+    }
+  } catch (error) {
+    toast.error("Failed to start upgrade");
+  }
+}
+
 export function InviteDialog({
   promptId,
   isOwner,
@@ -95,6 +123,7 @@ export function InviteDialog({
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [email, setEmail] = useState("");
 
+  const currentUser = useQuery(api.users.getCurrentUser);
   const pendingInvites = useQuery(api.collaborationInvites.getPendingInvites, {
     promptId: promptId as Id<"prompts">,
   });
@@ -627,6 +656,7 @@ export function InviteDialog({
                       <Button
                         size="sm"
                         className="mt-3 gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 transition-opacity"
+                        onClick={() => handleUpgrade("normal", currentUser?.workosId, currentUser?.email)}
                       >
                         <Zap className="w-4 h-4" />
                         Upgrade Now

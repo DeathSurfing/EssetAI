@@ -185,3 +185,33 @@ export const resetGenerationPeriod = mutation({
     return { reset: false };
   },
 });
+
+export const upgradeUserByWorkosId = internalMutation({
+  args: {
+    workosId: v.string(),
+    role: v.union(v.literal("normal"), v.literal("paid")),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_workosId", (q) => q.eq("workosId", args.workosId))
+      .first();
+
+    if (!user) {
+      throw new Error(`User not found: ${args.workosId}`);
+    }
+
+    const limits: Record<string, number> = {
+      normal: 20,
+      paid: 100,
+    };
+
+    await ctx.db.patch(user._id, {
+      role: args.role,
+      monthlyGenerationLimit: limits[args.role],
+      updatedAt: Date.now(),
+    });
+
+    return { success: true, userId: user._id };
+  },
+});
